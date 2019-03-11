@@ -7,6 +7,27 @@
 int run;
 int decrypt;
 
+void custom_MTPROC(ftps4_client_info_t *client) {
+  int result = mkdir("/mnt/proc", 0777);
+  if (result < 0 && (*__error()) != 17) {
+    ftps4_ext_client_send_ctrl_msg(client, "Failed to create /mnt/proc!" FTPS4_EOL);
+    goto fail;
+  }
+
+  result = mount("procfs", "/mnt/proc", 0, NULL);
+  if (result < 0) {
+    ftps4_ext_client_send_ctrl_msg(client, "Failed to mount procfs!" FTPS4_EOL);
+    goto fail;
+  }
+
+  ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
+  return;
+
+fail:
+  ftps4_ext_client_send_ctrl_msg(client, "550 Could not mount!" FTPS4_EOL);
+  return;
+}
+
 void custom_MTRW(ftps4_client_info_t *client) {
   if (mount_large_fs("/dev/da0x0.crypt", "/preinst", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
@@ -115,6 +136,7 @@ int _main(struct thread *td) {
   }
 
   ftps4_init(ip_address, FTP_PORT);
+  ftps4_ext_add_command("MTPROC", custom_MTPROC);
   ftps4_ext_add_command("DECRYPT", custom_DECRYPT);
   ftps4_ext_del_command("RETR");
   ftps4_ext_add_command("RETR", custom_RETR);
