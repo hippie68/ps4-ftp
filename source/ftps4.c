@@ -314,13 +314,13 @@ static void cmd_LIST_func(ftps4_client_info_t *client) {
 
   if (n > 0 && ftp_file_exists(list_path)) {
     list_cur_path = 0;
-	}
+  }
 
   if (list_cur_path) {
     send_LIST(client, client->cur_path);
-	} else {
+  } else {
     send_LIST(client, list_path);
-	}
+  }
 }
 
 static void cmd_PWD_func(ftps4_client_info_t *client) {
@@ -340,7 +340,7 @@ static void dir_up(char *path) {
   pch = strrchr(path, '/');
   if (pch == path) {
     goto root;
-	}
+  }
   *pch = '\0';
 }
 
@@ -363,9 +363,9 @@ static void cmd_CWD_func(ftps4_client_info_t *client) {
       } else { /* Change dir relative to current dir */
         if (strcmp(client->cur_path, "/") == 0) {
           snprintf(tmp_path, sizeof(tmp_path), "%s%s", client->cur_path, cmd_path);
-				} else {
+        } else {
           snprintf(tmp_path, sizeof(tmp_path), "%s/%s", client->cur_path, cmd_path);
-				}
+        }
       }
 
       /* If the path is not "/", check if it exists */
@@ -459,7 +459,7 @@ static void gen_ftp_fullpath(ftps4_client_info_t *client, char *path, size_t pat
     strncpy(path, cmd_path, path_size);
   } else {
     /* The file is relative to current dir, so
-		 * append the file to the current path */
+     * append the file to the current path */
     snprintf(path, path_size, "%s/%s", client->cur_path, cmd_path);
   }
 }
@@ -477,7 +477,7 @@ static void receive_file(ftps4_client_info_t *client, const char *path) {
 
   int mode = O_CREAT | O_RDWR;
   /* if we resume broken - append missing part
-	 * else - overwrite file */
+   * else - overwrite file */
   if (client->restore_point) {
     mode = mode | O_APPEND;
   } else {
@@ -626,9 +626,9 @@ static void cmd_FEAT_func(ftps4_client_info_t *client) {
 
 static void cmd_APPE_func(ftps4_client_info_t *client) {
   /* set restore point to not 0
-	restore point numeric value only matters if we RETR file from ps4.
-	If we STOR or APPE, it is only used to indicate that we want to resume
-	a broken transfer */
+  restore point numeric value only matters if we RETR file from ps4.
+  If we STOR or APPE, it is only used to indicate that we want to resume
+  a broken transfer */
   client->restore_point = -1;
   char dest_path[PATH_MAX];
   gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
@@ -702,7 +702,7 @@ static void client_list_thread_end() {
     client_thid = it->thid;
 
     /* Abort the client's control socket, only abort
-		 * receiving data so we can still send control messages */
+     * receiving data so we can still send control messages */
     sceNetSocketAbort(it->ctrl_sockfd, SCE_NET_SOCKET_ABORT_FLAG_RCV_PRESERVATION);
 
     /* If there's an open data connection, abort it */
@@ -841,8 +841,8 @@ static void *server_thread(void *arg) {
       break;
     } else {
       /* if sceNetAccept returns < 0, it means that the listening
-			 * socket has been closed, this means that we want to
-			 * finish the server thread */
+       * socket has been closed, this means that we want to
+       * finish the server thread */
       break;
     }
   }
@@ -913,16 +913,16 @@ void ftps4_fini() {
     /* Necessary to get sceNetAccept to notice the close on PS4? */
     sceNetSocketAbort(server_sockfd, 0);
     /* In order to "stop" the blocking sceNetAccept,
-		 * we have to close the server socket; this way
-		 * the accept call will return an error */
+     * we have to close the server socket; this way
+     * the accept call will return an error */
     sceNetSocketClose(server_sockfd);
 
     /* Wait until the server threads ends */
     scePthreadJoin(server_thid, NULL);
 
     /* To close the clients we have to do the same:
-		 * we have to iterate over all the clients
-		 * and shutdown their sockets */
+     * we have to iterate over all the clients
+     * and shutdown their sockets */
     client_list_thread_end();
 
     /* Delete the client list mutex */
