@@ -26,8 +26,7 @@ static int number_clients = 0;
 static ftps4_client_info_t *client_list = NULL;
 static ScePthreadMutex client_list_mtx;
 
-#define client_send_ctrl_msg(cl, str) \
-  sceNetSend(cl->ctrl_sockfd, str, strlen(str), 0)
+#define client_send_ctrl_msg(cl, str) sceNetSend(cl->ctrl_sockfd, str, strlen(str), 0)
 
 static inline void client_send_data_msg(ftps4_client_info_t *client, const char *str) {
   if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {

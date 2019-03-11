@@ -10,7 +10,7 @@
   },
   "author": "XVortex",
   "url": "https://github.com/xvortex/ps4-ftp-vtx",
-  "redirect": true,
+  "redirect": false,
   "reload": false,
-  "offline": true
+  "offline": false
 }

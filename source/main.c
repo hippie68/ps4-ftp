@@ -20,6 +20,7 @@ void custom_MTRW(ftps4_client_info_t *client) {
   if (mount_large_fs("/dev/da0x5.crypt", "/system_ex", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
+  /*
   if (mount_large_fs("/dev/da0x9.crypt", "/system_data", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
@@ -29,6 +30,7 @@ void custom_MTRW(ftps4_client_info_t *client) {
   if (mount_large_fs("/dev/md0.crypt", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
+  */
 
   ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
   return;

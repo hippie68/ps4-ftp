@@ -134,7 +134,7 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
   *sonyCred = 0xffffffffffffffff;
 
   uint64_t *sceProcessAuthorityId = (uint64_t *)(((char *)td_ucred) + 88);
-  *sceProcessAuthorityId = 0x3800000000000010;
+  *sceProcessAuthorityId = 0x3801000000000013;
 
   uint64_t *sceProcCap = (uint64_t *)(((char *)td_ucred) + 104);
   *sceProcCap = 0xffffffffffffffff;
