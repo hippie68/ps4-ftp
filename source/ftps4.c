@@ -230,8 +230,8 @@ static int gen_list_format(char *out, int n, mode_t file_mode, unsigned long lon
     return snprintf(out, n, LIST_FMT " -> %s" FTPS4_EOL, LIST_ARGS, link_name);
   }
 
-  #undef LIST_ARGS
-  #undef LIST_FMT
+#undef LIST_ARGS
+#undef LIST_FMT
 }
 
 static void send_LIST(ftps4_client_info_t *client, const char *path) {
@@ -333,7 +333,7 @@ static void dir_up(char *path) {
   char *pch;
   size_t len_in = strlen(path);
   if (len_in == 1) {
-  root:
+root:
     strcpy(path, "/");
     return;
   }
