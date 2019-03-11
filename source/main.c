@@ -23,7 +23,7 @@ void custom_MTRW(ftps4_client_info_t *client) {
   if (mount_large_fs("/dev/da0x9.crypt", "/system_data", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
-	if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
+  if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
   if (mount_large_fs("/dev/md0.crypt", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
@@ -97,7 +97,7 @@ int _main(struct thread *td) {
 
   initKernel();
   initLibc();
-	initNetwork();
+  initNetwork();
   initPthread();
 
   uint64_t fw_version = get_fw_version();
