@@ -61,7 +61,7 @@
 #define K455_MMAP_SELF_3           0x00000000
 #define K474_MMAP_SELF_3           0x00000000
 #define K501_MMAP_SELF_3           0x0013EF2F
-#define K503_MMAP_SELF_3           0x0013EF2F
-#define K505_MMAP_SELF_3           0x0013EF2F
+#define K503_MMAP_SELF_3           0x0013F03F
+#define K505_MMAP_SELF_3           0x0013F03F
 
 #endif
