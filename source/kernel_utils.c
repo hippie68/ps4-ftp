@@ -84,6 +84,12 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
   void **got_prison0;
   void **got_rootvnode;
 
+  uint8_t *kmem;
+
+  uint8_t *mmap_patch_1;
+  uint8_t *mmap_patch_2;
+  uint8_t *mmap_patch_3;
+
   uint64_t fw_version = args->kpayload_jailbreak_info->fw_version;
 
   if (fw_version == 0x405) {
@@ -91,31 +97,55 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K405_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K405_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K405_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K405_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K405_MMAP_SELF_3];
   } else if (fw_version == 0x455) {
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K455_XFAST_SYSCALL];
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K455_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K455_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K455_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K455_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K455_MMAP_SELF_3];
   } else if (fw_version == 0x474) {
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K474_XFAST_SYSCALL];
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K474_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K474_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K474_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K474_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K474_MMAP_SELF_3];
   } else if (fw_version == 0x501) {
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K501_XFAST_SYSCALL];
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K501_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K501_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K501_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K501_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K501_MMAP_SELF_3];
   } else if (fw_version == 0x503) {
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K503_XFAST_SYSCALL];
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K503_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K503_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K503_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K503_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K503_MMAP_SELF_3];
   } else if (fw_version == 0x505) {
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K505_XFAST_SYSCALL];
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K505_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K505_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K505_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K505_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K505_MMAP_SELF_3];
   } else {
     return -1;
   }
@@ -139,148 +169,31 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
   uint64_t *sceProcCap = (uint64_t *)(((char *)td_ucred) + 104);
   *sceProcCap = 0xffffffffffffffff;
 
-  uint8_t *kmem;
-
   uint64_t cr0 = readCr0();
   writeCr0(cr0 & ~X86_CR0_WP);
 
-  if (fw_version == 0x405) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K405_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
+  kmem = (uint8_t *)mmap_patch_1;
+  kmem[0] = 0xB8;
+  kmem[1] = 0x01;
+  kmem[2] = 0x00;
+  kmem[3] = 0x00;
+  kmem[4] = 0x00;
+  kmem[5] = 0xC3;
 
-    uint8_t *mmap_patch_1 = &kernel_ptr[K405_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K405_MMAP_SELF_2];
+  kmem = (uint8_t *)mmap_patch_2;
+  kmem[0] = 0xB8;
+  kmem[1] = 0x01;
+  kmem[2] = 0x00;
+  kmem[3] = 0x00;
+  kmem[4] = 0x00;
+  kmem[5] = 0xC3;
 
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0x90;
-    kmem[1] = 0xE9;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0x90;
-    kmem[1] = 0x90;
-  } else if (fw_version == 0x455) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K455_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
-
-    uint8_t *mmap_patch_1 = &kernel_ptr[K455_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K455_MMAP_SELF_2];
-
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0x90;
-    kmem[1] = 0xE9;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0x90;
-    kmem[1] = 0x90;
-  } else if (fw_version == 0x474) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K474_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
-
-    uint8_t *mmap_patch_1 = &kernel_ptr[K474_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K474_MMAP_SELF_2];
-
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0x90;
-    kmem[1] = 0xE9;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0x90;
-    kmem[1] = 0x90;
-  } else if (fw_version == 0x501) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K501_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
-
-    uint8_t *mmap_patch_1 = &kernel_ptr[K501_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K501_MMAP_SELF_2];
-    uint8_t *mmap_patch_3 = &kernel_ptr[K501_MMAP_SELF_3];
-
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_3;
-    kmem[0] = 0x31;
-    kmem[1] = 0xC0;
-    kmem[2] = 0x90;
-    kmem[3] = 0x90;
-    kmem[4] = 0x90;
-  } else if (fw_version == 0x503) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K503_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
-
-    uint8_t *mmap_patch_1 = &kernel_ptr[K503_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K503_MMAP_SELF_2];
-    uint8_t *mmap_patch_3 = &kernel_ptr[K503_MMAP_SELF_3];
-
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_3;
-    kmem[0] = 0x31;
-    kmem[1] = 0xC0;
-    kmem[2] = 0x90;
-    kmem[3] = 0x90;
-    kmem[4] = 0x90;
-  } else if (fw_version == 0x505) {
-    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K505_XFAST_SYSCALL];
-    kernel_ptr = (uint8_t *)kernel_base;
-
-    uint8_t *mmap_patch_1 = &kernel_ptr[K505_MMAP_SELF_1];
-    uint8_t *mmap_patch_2 = &kernel_ptr[K505_MMAP_SELF_2];
-    uint8_t *mmap_patch_3 = &kernel_ptr[K505_MMAP_SELF_3];
-
-    kmem = (uint8_t *)mmap_patch_1;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_2;
-    kmem[0] = 0xB8;
-    kmem[1] = 0x01;
-    kmem[2] = 0x00;
-    kmem[3] = 0x00;
-    kmem[4] = 0x00;
-    kmem[5] = 0xC3;
-
-    kmem = (uint8_t *)mmap_patch_3;
-    kmem[0] = 0x31;
-    kmem[1] = 0xC0;
-    kmem[2] = 0x90;
-    kmem[3] = 0x90;
-    kmem[4] = 0x90;
-  } else {
-    writeCr0(cr0);
-
-    return -1;
-  }
+  kmem = (uint8_t *)mmap_patch_3;
+  kmem[0] = 0x31;
+  kmem[1] = 0xC0;
+  kmem[2] = 0x90;
+  kmem[3] = 0x90;
+  kmem[4] = 0x90;
 
   writeCr0(cr0);
 
