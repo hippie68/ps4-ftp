@@ -43,23 +43,23 @@
 #define K503_COPYOUT               0x001EA630
 #define K505_COPYOUT               0x001EA630
 
-#define K405_MMAP_SELF_1           0x0031EE40
-#define K455_MMAP_SELF_1           0x00143BF2
-#define K474_MMAP_SELF_1           0x00143282
+#define K405_MMAP_SELF_1           0x003605F0
+#define K455_MMAP_SELF_1           0x0016A5B0
+#define K474_MMAP_SELF_1           0x00169810
 #define K501_MMAP_SELF_1           0x000117B0
 #define K503_MMAP_SELF_1           0x000117B0
 #define K505_MMAP_SELF_1           0x000117B0
 
-#define K405_MMAP_SELF_2           0x0031EF98
-#define K455_MMAP_SELF_2           0x00143E0E
-#define K474_MMAP_SELF_2           0x0014349E
+#define K405_MMAP_SELF_2           0x00360600
+#define K455_MMAP_SELF_2           0x0016A5C0
+#define K474_MMAP_SELF_2           0x00169820
 #define K501_MMAP_SELF_2           0x000117C0
 #define K503_MMAP_SELF_2           0x000117C0
 #define K505_MMAP_SELF_2           0x000117C0
 
-#define K405_MMAP_SELF_3           0x00000000
-#define K455_MMAP_SELF_3           0x00000000
-#define K474_MMAP_SELF_3           0x00000000
+#define K405_MMAP_SELF_3           0x0031EE37
+#define K455_MMAP_SELF_3           0x00143BE7
+#define K474_MMAP_SELF_3           0x00143277
 #define K501_MMAP_SELF_3           0x0013EF2F
 #define K503_MMAP_SELF_3           0x0013F03F
 #define K505_MMAP_SELF_3           0x0013F03F
