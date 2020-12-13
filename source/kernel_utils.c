@@ -339,6 +339,10 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
     kernel_ptr = (uint8_t *)kernel_base;
     got_prison0 = (void **)&kernel_ptr[K650_PRISON_0];
     got_rootvnode = (void **)&kernel_ptr[K650_ROOTVNODE];
+
+    mmap_patch_1 = &kernel_ptr[K650_MMAP_SELF_1];
+    mmap_patch_2 = &kernel_ptr[K650_MMAP_SELF_2];
+    mmap_patch_3 = &kernel_ptr[K650_MMAP_SELF_3];
   } else if (fw_version == 0x670) {
     // 6.70, 6.71, and 6.72
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K670_XFAST_SYSCALL];
