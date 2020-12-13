@@ -41,6 +41,9 @@ int kpayload_get_fw_version(struct thread *td, struct kpayload_get_fw_version_ar
     } else if (!memcmp((char *)(kernel_base + K670_PRINTF), (char[12]){0x55, 0x48, 0x89, 0xE5, 0x53, 0x48, 0x83, 0xEC, 0x58, 0x48, 0x8D, 0x1D}, 12)) {
       fw_version = 0x670; // 6.70, 6.71, and 6.72
       copyout = (void *)(kernel_base + K670_COPYOUT);
+    } else if (!memcmp((char *)(kernel_base + K650_PRINTF), (char[12]){0x55, 0x48, 0x89, 0xE5, 0x53, 0x48, 0x83, 0xEC, 0x58, 0x48, 0x8D, 0x1D}, 12)) {
+      fw_version = 0x650; // 6.50 and 6.51
+      copyout = (void *)(kernel_base + K650_COPYOUT);
     } else if (!memcmp((char *)(kernel_base + K620_PRINTF), (char[12]){0x55, 0x48, 0x89, 0xE5, 0x53, 0x48, 0x83, 0xEC, 0x58, 0x48, 0x8D, 0x1D}, 12)) {
       fw_version = 0x620; // 6.20
       copyout = (void *)(kernel_base + K620_COPYOUT);
@@ -330,6 +333,12 @@ int kpayload_jailbreak(struct thread *td, struct kpayload_jailbreak_args *args) 
     mmap_patch_1 = &kernel_ptr[K620_MMAP_SELF_1];
     mmap_patch_2 = &kernel_ptr[K620_MMAP_SELF_2];
     mmap_patch_3 = &kernel_ptr[K620_MMAP_SELF_3];
+  } else if (fw_version == 0x670) {
+    // 6.50 and 6.51
+    kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K650_XFAST_SYSCALL];
+    kernel_ptr = (uint8_t *)kernel_base;
+    got_prison0 = (void **)&kernel_ptr[K650_PRISON_0];
+    got_rootvnode = (void **)&kernel_ptr[K650_ROOTVNODE];
   } else if (fw_version == 0x670) {
     // 6.70, 6.71, and 6.72
     kernel_base = &((uint8_t *)__readmsr(0xC0000082))[-K670_XFAST_SYSCALL];
