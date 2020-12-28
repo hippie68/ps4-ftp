@@ -117,6 +117,7 @@ int _main(struct thread *td) {
   initPthread();
 
   jailbreak();
+  mmap_patch();
 
   initSysUtil();
   printf_notification("Welcome to FTPS4");
