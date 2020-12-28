@@ -1,7 +1,7 @@
 {
   "title": "FTP",
   "version": "1.0.0",
-  "updated": "2001-01-01T00:00:00Z",
+  "updated": "2021-01-01T00:00:00Z",
   "device": "PlayStation 4",
   "firmware": "",
   "description": {
@@ -9,7 +9,7 @@
     "en": "FTP server, runs on port 1337. Runs in webkit process, as such the browser must remain open. Send custom 'DECYPT' command to toggle on-the-fly SELF decryption."
   },
   "author": "XVortex",
-  "url": "https://github.com/xvortex/ps4-ftp-vtx",
+  "url": "https://github.com/Scene-Collective/ps4-ftp",
   "redirect": false,
   "reload": false,
   "offline": false

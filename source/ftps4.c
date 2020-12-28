@@ -1,8 +1,7 @@
 /* Copyright (c) 2015 Sergi Granell (xerpi) */
-#include "kernel_utils.h"
-#include "ftps4.h"
+#include "ps4.h"
 
-#define UNUSED(x) (void)(x)
+#include "ftps4.h"
 
 #define NET_INIT_SIZE (64 * 1024)
 #define DEFAULT_FILE_BUF_SIZE 0x200
@@ -754,7 +753,7 @@ static void *client_thread(void *arg) {
       /* Delete itself from the client list */
       client_list_delete(client);
       break;
-    } else if (client->n_recv == SCE_NET_ERROR_EINTR) {
+    } else if (client->n_recv == (int)SCE_NET_ERROR_EINTR) {
       /* Socket aborted (ftps4_fini() called) */
       break;
     } else {
@@ -782,6 +781,8 @@ static void *client_thread(void *arg) {
 }
 
 static void *server_thread(void *arg) {
+  UNUSED(arg);
+
   int ret, enable;
   UNUSED(ret);
 
@@ -836,7 +837,7 @@ static void *server_thread(void *arg) {
       scePthreadCreate(&client->thid, NULL, client_thread, client, client_thread_name);
 
       number_clients++;
-    } else if (client_sockfd == SCE_NET_ERROR_EINTR) {
+    } else if (client_sockfd == (int)SCE_NET_ERROR_EINTR) {
       break;
     } else {
       /* if sceNetAccept returns < 0, it means that the listening

@@ -1,5 +1,7 @@
 /* Copyright (c) 2015 Sergi Granell (xerpi) */
 
+#pragma once
+
 #ifndef FTPS4_H
 #define FTPS4_H
 

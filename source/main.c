@@ -1,5 +1,4 @@
-#include "kernel_utils.h"
-
+#include "ps4.h"
 #include "ftps4.h"
 
 #define FTP_PORT 1337
@@ -92,27 +91,22 @@ int get_ip_address(char *ip_address) {
   SceNetCtlInfo info;
 
   ret = sceNetCtlInit();
-  if (ret < 0) {
-    goto error;
+  if (ret >= 0) {
+    ret = sceNetCtlGetInfo(SCE_NET_CTL_INFO_IP_ADDRESS, &info);
+    if (ret >= 0) {
+      memcpy(ip_address, info.ip_address, sizeof(info.ip_address));
+      sceNetCtlTerm();
+
+      return ret;
+    }
   }
 
-  ret = sceNetCtlGetInfo(SCE_NET_CTL_INFO_IP_ADDRESS, &info);
-  if (ret < 0) {
-    goto error;
-  }
-
-  memcpy(ip_address, info.ip_address, sizeof(info.ip_address));
-
-  sceNetCtlTerm();
-
-  return ret;
-
-error:
   ip_address = NULL;
   return -1;
 }
 
 int _main(struct thread *td) {
+  UNUSED(td);
   char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN];
 
   run = 1;
@@ -123,35 +117,32 @@ int _main(struct thread *td) {
   initNetwork();
   initPthread();
 
-  uint64_t fw_version = get_fw_version();
-  jailbreak(fw_version);
+  jailbreak();
 
   initSysUtil();
   printf_notification("Welcome to FTPS4");
 
   int ret = get_ip_address(ip_address);
-  if (ret < 0) {
+  if (ret >= 0) {
+    ftps4_init(ip_address, FTP_PORT);
+    ftps4_ext_add_command("MTPROC", custom_MTPROC);
+    ftps4_ext_add_command("DECRYPT", custom_DECRYPT);
+    ftps4_ext_del_command("RETR");
+    ftps4_ext_add_command("RETR", custom_RETR);
+    ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
+    ftps4_ext_add_command("MTRW", custom_MTRW);
+
+    printf_notification("Listening on\nIP %s Port %i", ip_address, FTP_PORT);
+
+    while (run) {
+      sceKernelSleep(5);
+    }
+
+    ftps4_fini();
+  } else {
     printf_notification("Unable to get IP address");
-    goto error;
   }
 
-  ftps4_init(ip_address, FTP_PORT);
-  ftps4_ext_add_command("MTPROC", custom_MTPROC);
-  ftps4_ext_add_command("DECRYPT", custom_DECRYPT);
-  ftps4_ext_del_command("RETR");
-  ftps4_ext_add_command("RETR", custom_RETR);
-  ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
-  ftps4_ext_add_command("MTRW", custom_MTRW);
-
-  printf_notification("Listening on\nIP %s Port %i", ip_address, FTP_PORT);
-
-  while (run) {
-    sceKernelSleep(5);
-  }
-
-  ftps4_fini();
-
-error:
   printf_notification("Bye!");
 
   return 0;
