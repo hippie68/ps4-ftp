@@ -1,4 +1,4 @@
-Disable Updates
+FTP
 ===
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/16670167e484489292351d95894f6b4a)](https://www.codacy.com/gh/Scene-Collective/ps4-ftp/dashboard)
 
