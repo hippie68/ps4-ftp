@@ -3,7 +3,6 @@ FTP
 [![Codacy Badge](https://app.codacy.com/project/badge/Grade/16670167e484489292351d95894f6b4a)](https://www.codacy.com/gh/Scene-Collective/ps4-ftp/dashboard)
 
 ## Synopsis
-
 FTP server, runs on port 1337. Runs in webkit process, as such the browser must remain open. Send custom 'DECYPT' command to toggle on-the-fly SELF decryption.
 
 For the payloads built with the most recent firmware supported visit [this repo].
