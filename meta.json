@@ -8,7 +8,7 @@
     "default": "FTP server, runs on port 1337. Runs in webkit process, as such the browser must remain open. Send custom 'DECYPT' command to toggle on-the-fly SELF decryption.",
     "en": "FTP server, runs on port 1337. Runs in webkit process, as such the browser must remain open. Send custom 'DECYPT' command to toggle on-the-fly SELF decryption."
   },
-  "author": "XVortex",
+  "author": "xvortex",
   "url": "https://github.com/Scene-Collective/ps4-ftp",
   "redirect": false,
   "reload": false,
