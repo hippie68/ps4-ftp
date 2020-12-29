@@ -331,7 +331,7 @@ static void dir_up(char *path) {
   char *pch;
   size_t len_in = strlen(path);
   if (len_in == 1) {
-root:
+  root:
     strcpy(path, "/");
     return;
   }
@@ -389,15 +389,15 @@ static void cmd_TYPE_func(ftps4_client_info_t *client) {
 
   if (n_args > 0) {
     switch (data_type) {
-      case 'A':
-      case 'I':
-        client_send_ctrl_msg(client, "200 Okay" FTPS4_EOL);
-        break;
-      case 'E':
-      case 'L':
-      default:
-        client_send_ctrl_msg(client, "504 Error: bad parameters?" FTPS4_EOL);
-        break;
+    case 'A':
+    case 'I':
+      client_send_ctrl_msg(client, "200 Okay" FTPS4_EOL);
+      break;
+    case 'E':
+    case 'L':
+    default:
+      client_send_ctrl_msg(client, "504 Error: bad parameters?" FTPS4_EOL);
+      break;
     }
   } else {
     client_send_ctrl_msg(client, "504 Error: bad parameters?" FTPS4_EOL);

@@ -1,4 +1,5 @@
 #include "ps4.h"
+
 #include "ftps4.h"
 
 #define FTP_PORT 1337
@@ -72,7 +73,7 @@ void custom_DECRYPT(ftps4_client_info_t *client) {
 static void custom_RETR(ftps4_client_info_t *client) {
   char dest_path[PATH_MAX];
   ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
-  if(is_self(dest_path) && decrypt == 1) {
+  if (is_self(dest_path) && decrypt == 1) {
     decrypt_and_dump_self(dest_path, "/user/temp.self");
     ftps4_send_file(client, "/user/temp.self");
     unlink("/user/temp.self");
@@ -106,7 +107,7 @@ int get_ip_address(char *ip_address) {
 
 int _main(struct thread *td) {
   UNUSED(td);
-  char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = { 0 };
+  char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = {0};
 
   run = 1;
   decrypt = 0;
