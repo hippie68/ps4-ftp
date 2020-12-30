@@ -107,8 +107,8 @@ int get_ip_address(char *ip_address) {
 
 int _main(struct thread *td) {
   UNUSED(td);
-  char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = {0};
 
+  char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = {0};
   run = 1;
   decrypt = 0;
 
@@ -121,6 +121,7 @@ int _main(struct thread *td) {
   mmap_patch();
 
   initSysUtil();
+
   printf_notification("Welcome to FTPS4");
 
   int ret = get_ip_address(ip_address);
