@@ -122,7 +122,7 @@ int _main(struct thread *td) {
 
   initSysUtil();
 
-  printf_notification("Welcome to FTPS4");
+  printf_notification("Running FTP server");
 
   int ret = get_ip_address(ip_address);
   if (ret >= 0) {
@@ -134,7 +134,7 @@ int _main(struct thread *td) {
     ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
     ftps4_ext_add_command("MTRW", custom_MTRW);
 
-    printf_notification("Listening on\nIP %s Port %i", ip_address, FTP_PORT);
+    printf_notification("Listening on\nIP:     %s\nPort: %i", ip_address, FTP_PORT);
 
     while (run) {
       sceKernelSleep(5);
@@ -144,8 +144,6 @@ int _main(struct thread *td) {
   } else {
     printf_notification("Unable to get IP address");
   }
-
-  printf_notification("Bye!");
 
   return 0;
 }
