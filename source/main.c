@@ -145,5 +145,8 @@ int _main(struct thread *td) {
     printf_notification("Unable to get IP address");
   }
 
+  printf_notification("Shutting down FTP server...");
+  __asm__("ret"); // raise(SIGSEGV);
+
   return 0;
 }
