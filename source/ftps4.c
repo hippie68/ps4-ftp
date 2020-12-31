@@ -77,9 +77,6 @@ static void cmd_SYST_func(ftps4_client_info_t *client) {
 }
 
 static void cmd_PASV_func(ftps4_client_info_t *client) {
-  int ret;
-  UNUSED(ret);
-
   char cmd[512];
   unsigned int namelen;
   struct sockaddr_in picked;
@@ -99,10 +96,10 @@ static void cmd_PASV_func(ftps4_client_info_t *client) {
   client->data_sockaddr.sin_port = sceNetHtons(0);
 
   /* Bind the data socket address to the data socket */
-  ret = sceNetBind(client->data_sockfd, (struct sockaddr *)&client->data_sockaddr, sizeof(client->data_sockaddr));
+  sceNetBind(client->data_sockfd, (struct sockaddr *)&client->data_sockaddr, sizeof(client->data_sockaddr));
 
   /* Start listening */
-  ret = sceNetListen(client->data_sockfd, 128);
+  sceNetListen(client->data_sockfd, 128);
 
   /* Get the port that the PS4 has chosen */
   namelen = sizeof(picked);
@@ -164,14 +161,11 @@ static void cmd_PORT_func(ftps4_client_info_t *client) {
 }
 
 static void client_open_data_connection(ftps4_client_info_t *client) {
-  int ret;
-  UNUSED(ret);
-
   unsigned int addrlen;
 
   if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
     /* Connect to the client using the data socket */
-    ret = sceNetConnect(client->data_sockfd, (struct sockaddr *)&client->data_sockaddr, sizeof(client->data_sockaddr));
+    sceNetConnect(client->data_sockfd, (struct sockaddr *)&client->data_sockaddr, sizeof(client->data_sockaddr));
 
   } else {
     /* Listen to the client using the data socket */
@@ -782,9 +776,7 @@ static void *client_thread(void *arg) {
 
 static void *server_thread(void *arg) {
   UNUSED(arg);
-
-  int ret, enable;
-  UNUSED(ret);
+  int enable;
 
   struct sockaddr_in serveraddr;
 
@@ -801,10 +793,10 @@ static void *server_thread(void *arg) {
   serveraddr.sin_port = sceNetHtons(ps4_port);
 
   /* Bind the server's address to the socket */
-  ret = sceNetBind(server_sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+  sceNetBind(server_sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
 
   /* Start listening */
-  ret = sceNetListen(server_sockfd, 128);
+  sceNetListen(server_sockfd, 128);
 
   while (1) {
     /* Accept clients */
