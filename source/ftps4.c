@@ -464,7 +464,6 @@ static void cmd_RETR_func(ftps4_client_info_t *client) {
 }
 
 static void receive_file(ftps4_client_info_t *client, const char *path) {
-  unsigned char *buffer;
   int fd;
 
   int mode = O_CREAT | O_RDWR;
@@ -477,6 +476,7 @@ static void receive_file(ftps4_client_info_t *client, const char *path) {
   }
 
   if ((fd = open(path, mode, 0777)) >= 0) {
+    unsigned char *buffer;
     buffer = malloc(file_buf_size);
     if (buffer == NULL) {
       client_send_ctrl_msg(client, "550 Could not allocate memory." FTPS4_EOL);
