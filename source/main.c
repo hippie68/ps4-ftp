@@ -71,7 +71,7 @@ void custom_DECRYPT(ftps4_client_info_t *client) {
 }
 
 static void custom_RETR(ftps4_client_info_t *client) {
-  char dest_path[PATH_MAX];
+  char dest_path[PATH_MAX] = {0};
   ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
   if (is_self(dest_path) && decrypt == 1) {
     decrypt_and_dump_self(dest_path, "/user/temp.self");
