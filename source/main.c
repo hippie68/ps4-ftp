@@ -9,26 +9,26 @@ int decrypt;
 
 void custom_MTPROC(ftps4_client_info_t *client) {
   int result = mkdir("/mnt/proc", 0777);
-  if (result < 0 && (*__error()) != 17) {
+  if (result >= 0 || (*__error()) == 17) {
+    result = mount("procfs", "/mnt/proc", 0, NULL);
+    if (result >= 0) {
+      ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
+      return;
+    } else {
+      ftps4_ext_client_send_ctrl_msg(client, "Failed to mount procfs!" FTPS4_EOL);
+    }
+  } else {
     ftps4_ext_client_send_ctrl_msg(client, "Failed to create /mnt/proc!" FTPS4_EOL);
-    goto fail;
   }
 
-  result = mount("procfs", "/mnt/proc", 0, NULL);
-  if (result < 0) {
-    ftps4_ext_client_send_ctrl_msg(client, "Failed to mount procfs!" FTPS4_EOL);
-    goto fail;
-  }
-
-  ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
-  return;
-
-fail:
   ftps4_ext_client_send_ctrl_msg(client, "550 Could not mount!" FTPS4_EOL);
   return;
 }
 
 void custom_MTRW(ftps4_client_info_t *client) {
+  if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
+    goto fail;
+  }
   if (mount_large_fs("/dev/da0x0.crypt", "/preinst", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
@@ -41,16 +41,9 @@ void custom_MTRW(ftps4_client_info_t *client) {
   if (mount_large_fs("/dev/da0x5.crypt", "/system_ex", "exfatfs", "511", MNT_UPDATE) < 0) {
     goto fail;
   }
-  /*
-  if (mount_large_fs("/dev/da0x9.crypt", "/system_data", "exfatfs", "511", MNT_UPDATE) < 0) {
-    goto fail;
-  }
-  if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
-    goto fail;
-  }
-  if (mount_large_fs("/dev/md0.crypt", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
-    goto fail;
-  }
+  /* These fail to mount...
+  // mount_large_fs("/dev/da0x9.crypt", "/system_data", "exfatfs", "511", MNT_UPDATE)
+  // mount_large_fs("/dev/md0.crypt", "/", "exfatfs", "511", MNT_UPDATE)
   */
 
   ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
@@ -90,6 +83,7 @@ void custom_SHUTDOWN(ftps4_client_info_t *client) {
 int get_ip_address(char *ip_address) {
   int ret;
   SceNetCtlInfo info;
+  memset_s(&info, sizeof(SceNetCtlInfo), 0, sizeof(SceNetCtlInfo));
 
   ret = sceNetCtlInit();
   if (ret >= 0) {
