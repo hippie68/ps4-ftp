@@ -1,3 +1,7 @@
+//#define DEBUG_SOCKET
+#define DEBUG_IP "192.168.2.2"
+#define DEBUG_PORT 9023
+
 #include "ps4.h"
 
 #include "ftps4.h"
@@ -66,7 +70,7 @@ void custom_DECRYPT(ftps4_client_info_t *client) {
 static void custom_RETR(ftps4_client_info_t *client) {
   char dest_path[PATH_MAX] = {0};
   ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
-  if (is_self(dest_path) && decrypt == 1) {
+  if (is_self(dest_path) && decrypt) {
     decrypt_and_dump_self(dest_path, "/user/temp.self");
     ftps4_send_file(client, "/user/temp.self");
     unlink("/user/temp.self");
@@ -111,6 +115,10 @@ int _main(struct thread *td) {
   initNetwork();
   initPthread();
 
+#ifdef DEBUG_SOCKET
+  DEBUG_SOCK = SckConnect(DEBUG_IP, DEBUG_PORT);
+#endif
+
   jailbreak();
   mmap_patch();
 
@@ -140,6 +148,11 @@ int _main(struct thread *td) {
   }
 
   printf_notification("Shutting down FTP server...");
+
+#ifdef DEBUG_SOCKET
+  printf_socket("\nClosing socket...\n\n");
+  SckClose(DEBUG_SOCK);
+#endif
 
   return 0;
 }
