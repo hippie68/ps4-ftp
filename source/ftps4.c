@@ -9,6 +9,8 @@
 #define FTP_DEFAULT_PATH "/"
 #define MAX_COMMANDS 32
 
+extern int kill_switch;
+
 static struct {
   const char *cmd;
   cmd_dispatch_func func;
@@ -420,8 +422,10 @@ static void send_file(ftps4_client_info_t *client, const char *path) {
     client_open_data_connection(client);
     client_send_ctrl_msg(client, "150 Opening Image mode data transfer." FTPS4_EOL);
 
+    kill_switch = 0; // Reset the kill switch for new transfers
+
     unsigned int bytes_read;
-    while ((bytes_read = read(fd, buffer, file_buf_size)) > 0) {
+    while (!kill_switch && (bytes_read = read(fd, buffer, file_buf_size)) > 0) {
       client_send_data_raw(client, buffer, bytes_read);
     }
 

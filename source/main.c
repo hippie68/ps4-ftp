@@ -10,6 +10,7 @@
 
 int run;
 int decrypt;
+int kill_switch;
 
 void custom_MTPROC(ftps4_client_info_t *client) {
   int result = mkdir("/mnt/proc", 0777);
@@ -79,6 +80,11 @@ static void custom_RETR(ftps4_client_info_t *client) {
   }
 }
 
+void custom_KILL(ftps4_client_info_t *client) {
+  ftps4_ext_client_send_ctrl_msg(client, "200 Killing downloads..." FTPS4_EOL);
+  kill_switch = 1;
+}
+
 void custom_SHUTDOWN(ftps4_client_info_t *client) {
   ftps4_ext_client_send_ctrl_msg(client, "200 Shutting down..." FTPS4_EOL);
   run = 0;
@@ -135,6 +141,7 @@ int _main(struct thread *td) {
     ftps4_ext_add_command("RETR", custom_RETR);
     ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
     ftps4_ext_add_command("MTRW", custom_MTRW);
+    ftps4_ext_add_command("KILL", custom_KILL);
 
     printf_notification("Listening on\nIP:     %s\nPort: %i", ip_address, FTP_PORT);
 
