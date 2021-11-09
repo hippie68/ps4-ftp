@@ -72,9 +72,19 @@ static void custom_RETR(ftps4_client_info_t *client) {
   char dest_path[PATH_MAX] = {0};
   ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
   if (is_self(dest_path) && decrypt) {
-    decrypt_and_dump_self(dest_path, "/user/temp.self");
-    ftps4_send_file(client, "/user/temp.self");
-    unlink("/user/temp.self");
+    // Create unique temporary file to allow simultaneous decryptions
+    char *filename = strrchr(dest_path, '/');
+    filename++;
+    char temp_path[PATH_MAX];
+    strcpy(temp_path, "/user/temp/ftp_");
+    strcat(temp_path, filename);
+    while (file_exists(temp_path) && strlen(temp_path) + 1 < PATH_MAX) {
+      strcat(temp_path, "_");
+    }
+
+    decrypt_and_dump_self(dest_path, temp_path);
+    ftps4_send_file(client, temp_path);
+    unlink(temp_path);
   } else {
     ftps4_send_file(client, dest_path);
   }
