@@ -10,6 +10,7 @@
 #define MAX_COMMANDS 32
 
 extern int kill_switch;
+extern int run;
 
 static struct {
   const char *cmd;
@@ -798,7 +799,12 @@ static void *server_thread(void *arg) {
   serveraddr.sin_port = sceNetHtons(ps4_port);
 
   /* Bind the server's address to the socket */
-  sceNetBind(server_sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr));
+  if (sceNetBind(server_sockfd, (struct sockaddr *)&serveraddr, sizeof(serveraddr))) {
+    // Trigger server shutdown if binding was not successful
+    printf_notification("Port %i already in use", ps4_port);
+    run = 0;
+    return NULL;
+  }
 
   /* Start listening */
   sceNetListen(server_sockfd, 128);

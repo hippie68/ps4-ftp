@@ -144,7 +144,7 @@ int _main(struct thread *td) {
 
   int ret = get_ip_address(ip_address);
   if (ret >= 0) {
-    ftps4_init(ip_address, FTP_PORT);
+    ftps4_init(ip_address, FTP_PORT); // Server will set "run" to 0 on binding error
     ftps4_ext_add_command("MTPROC", custom_MTPROC);
     ftps4_ext_add_command("DECRYPT", custom_DECRYPT);
     ftps4_ext_del_command("RETR");
@@ -153,7 +153,11 @@ int _main(struct thread *td) {
     ftps4_ext_add_command("MTRW", custom_MTRW);
     ftps4_ext_add_command("KILL", custom_KILL);
 
-    printf_notification("Listening on\nIP:     %s\nPort: %i", ip_address, FTP_PORT);
+    // Give the server some time to possibly change "run"
+    sceKernelSleep(5);
+    if (run) {
+      printf_notification("Listening on\nIP:     %s\nPort: %i", ip_address, FTP_PORT);
+    }
 
     while (run) {
       sceKernelSleep(5);
