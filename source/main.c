@@ -71,13 +71,11 @@ void custom_DECRYPT(ftps4_client_info_t *client) {
 static void custom_RETR(ftps4_client_info_t *client) {
   char dest_path[PATH_MAX] = {0};
   ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
-  if (is_self(dest_path) && decrypt) {
+
+  if (decrypt && is_self(dest_path)) {
     // Create unique temporary file to allow simultaneous decryptions
-    char *filename = strrchr(dest_path, '/');
-    filename++;
     char temp_path[PATH_MAX];
-    strcpy(temp_path, "/user/temp/ftp_");
-    strcat(temp_path, filename);
+    sprintf(temp_path, "/user/temp/ftp_temp_file_%d", client->ctrl_sockfd);
     while (file_exists(temp_path) && strlen(temp_path) + 1 < PATH_MAX) {
       strcat(temp_path, "_");
     }
@@ -88,6 +86,37 @@ static void custom_RETR(ftps4_client_info_t *client) {
   } else {
     ftps4_send_file(client, dest_path);
   }
+}
+
+static void custom_SIZE(ftps4_client_info_t *client) {
+  struct stat s;
+  char path[PATH_MAX];
+  char cmd[64];
+
+  // Get the filename to retrieve its size
+  ftps4_gen_ftp_fullpath(client, path, sizeof(path));
+
+  // Check if the file exists
+  if (stat(path, &s) < 0) {
+    ftps4_ext_client_send_ctrl_msg(client, "550 The file does not exist." FTPS4_EOL);
+    return;
+  }
+
+  // If file is a SELF, decrypt it to retrieve the correct file size
+  if (decrypt && is_self(path)) {
+    char temp_path[PATH_MAX];
+    sprintf(temp_path, "/user/temp/ftp_temp_file_%d", client->ctrl_sockfd);
+    while (file_exists(temp_path) && strlen(temp_path) + 1 < PATH_MAX) {
+      strcat(temp_path, "_");
+    }
+    decrypt_and_dump_self(path, temp_path);
+    stat(temp_path, &s);
+    unlink(temp_path);
+  }
+
+  // Send the size of the file
+  sprintf(cmd, "213 %lld" FTPS4_EOL, s.st_size);
+  ftps4_ext_client_send_ctrl_msg(client, cmd);
 }
 
 void custom_KILL(ftps4_client_info_t *client) {
@@ -150,6 +179,8 @@ int _main(struct thread *td) {
     ftps4_ext_del_command("RETR");
     ftps4_ext_add_command("RETR", custom_RETR);
     ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
+    ftps4_ext_del_command("SIZE");
+    ftps4_ext_add_command("SIZE", custom_SIZE);
     ftps4_ext_add_command("MTRW", custom_MTRW);
     ftps4_ext_add_command("KILL", custom_KILL);
 

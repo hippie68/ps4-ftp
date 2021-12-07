@@ -24,7 +24,7 @@ static struct in_addr ps4_addr;
 static unsigned short int ps4_port;
 static ScePthread server_thid;
 static int server_sockfd;
-static int number_clients = 0;
+static unsigned int number_clients = 0;
 static ftps4_client_info_t *client_list = NULL;
 static ScePthreadMutex client_list_mtx;
 
@@ -661,6 +661,7 @@ static void client_list_add(ftps4_client_info_t *client) {
     client_list = client;
   }
   client->restore_point = 0;
+
   number_clients++;
 
   scePthreadMutexUnlock(&client_list_mtx);
@@ -839,7 +840,6 @@ static void *server_thread(void *arg) {
       /* Create a new thread for the client */
       scePthreadCreate(&client->thid, NULL, client_thread, client, client_thread_name);
 
-      number_clients++;
     } else if (client_sockfd == (int)SCE_NET_ERROR_EINTR) {
       break;
     } else {
