@@ -4,6 +4,7 @@ The current PS4 FTP server payloads have some problems:
 - [Fixed] Downloading multiple SELFs will corrupt the decryption, as the same temporary file is used.
 - [Fixed] It is possible to load the payload multiple times, wasting memory.
 - [Fixed] The server reports wrong file sizes for encrypted files when decryption is enabled, potentially corrupting resuming downloads.
+- [Fixed] Files larger than 4 GiB may not resume properly due to an integer overflow.
 - [Help needed] Connecting a client seems to cause a memory leak, which will eventually crash the server after several thousand new client connections.
 
 If you have ideas on how to improve the code and want to share, let me know.
