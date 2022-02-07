@@ -27,7 +27,7 @@ typedef enum {
 
 typedef struct ftps4_client_info {
   /* Client number */
-  int num;
+  unsigned int num;
   /* Thread UID */
   ScePthread thid;
   /* Control connection socket FD */
@@ -54,7 +54,7 @@ typedef struct ftps4_client_info {
   struct ftps4_client_info *next;
   struct ftps4_client_info *prev;
   /* Offset for transfer resume */
-  unsigned int restore_point;
+  long int restore_point;
 } ftps4_client_info_t;
 
 typedef void (*cmd_dispatch_func)(ftps4_client_info_t *client); // Command handler

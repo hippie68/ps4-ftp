@@ -610,8 +610,8 @@ static void cmd_SIZE_func(ftps4_client_info_t *client) {
 
 static void cmd_REST_func(ftps4_client_info_t *client) {
   char cmd[64] = {0};
-  sscanf(client->recv_buffer, "%*[^ ] %d", &client->restore_point);
-  sprintf(cmd, "350 Resuming at %d" FTPS4_EOL, client->restore_point);
+  sscanf(client->recv_buffer, "%*[^ ] %ld", &client->restore_point);
+  sprintf(cmd, "350 Resuming at %ld" FTPS4_EOL, client->restore_point);
   client_send_ctrl_msg(client, cmd);
 }
 
