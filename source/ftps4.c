@@ -313,6 +313,8 @@ static void cmd_LIST_func(ftps4_client_info_t *client) {
     if (n > 0) {
         if (ftp_file_exists(list_path)) {
             send_LIST(client, list_path);
+        } else if (strcmp("-a", list_path) == 0) {
+            send_LIST(client, client->cur_path);
         } else {
             client_send_ctrl_msg(client, "550 File or directory does not exist." FTPS4_EOL);
         }
