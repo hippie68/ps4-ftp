@@ -1,4 +1,8 @@
-The current PS4 FTP server payloads have some problems:
+# FTP server for PS4 and Linux
+
+This is an improved version of the "FTPS4" FTP server payload (https://github.com/xerpi/FTPS4) that fixes a few major bugs and many small ones. Plus the server now runs on Linux, too!
+
+Some of the most important bug fixes:
 
 - [Fixed] A limitation that causes the server to keep sending data after a download is cancelled client-side. This can cause follow-up downloads to become slower and slower.
 - [Fixed] Downloading multiple SELFs will corrupt the decryption, as the same temporary file is used.
@@ -7,11 +11,46 @@ The current PS4 FTP server payloads have some problems:
 - [Fixed] Files larger than 4 GiB may not resume properly due to an integer overflow.
 - [Fixed] The server crashes when sending long commands.
 - [Fixed] The server does not send an error message when the requested path does not exist.
-- [Help needed] Connecting a client seems to cause a memory leak.
+- [Help needed] Connecting a client causes a memory leak (see script "connect_and_crash.sh").
 
-The improved FTP payload is available for download in the [release section](https://github.com/hippie68/ps4-ftp/releases/).
+The improved PS4 FTP payload is available for download in the [release section](https://github.com/hippie68/ps4-ftp/releases/).
 
-If you have ideas on how to improve the code and want to share, please let me know by creating an [issue](https://github.com/hippie68/ps4-ftp/issues).
-Bash scripts to test FTP servers for some of the bugs are found in the [scripts directory](https://github.com/hippie68/ps4-ftp/tree/main/scripts).
+## How to compile for PS4
 
-Thanks to xvortex and Al-Azif for providing the source code. This FTP server is their work, and I just found and fixed some bugs.
+1. Set up the PS4 payload SDK from https://github.com/Scene-Collective/ps4-payload-sdk.
+2. In the code's root directory, type "make clean && make" to compile.
+
+Optional: if you want to help debug, save your computer's IP address and port in the file ftp.h. Uncomment the line that says "//#define DEBUG_PS4" or use compiler option -DDEBUG_PS4. It will make the code larger and the FTP server less responsive, so only do this if you want to debug.  
+On your computer, start netcat or any similar TCP/IP program to listen to the debug output. IP address and port must match those specified in ftp.h. E.g.:
+
+```
+    netcat -l 192.168.0.1 9023
+```
+
+This must be done before starting the payload.
+
+## How to compile for Linux
+
+```
+    gcc source/*.c -pthread -Wall -Wextra --pedantic -s -O3 -o ftp
+```
+
+## How to run on Linux
+
+```
+Usage: ./ftp [OPTIONS] [PORT]
+
+Options:
+  -h, --help  Print help information and quit.
+```
+
+The Linux version starts an anonymous FTP server in the current directory, with the default port being 1337. It will print a log that displays connected clients and the client-server dialogues. If you want to see debug output, too, add the compiler option -DDEBUG.
+
+---
+
+If you have ideas on how to improve the code and want to share, please let me know by creating an [issue](https://github.com/hippie68/ps4-ftp/issues).  
+Bash scripts to test other FTP servers for some of the bugs are found in the [scripts directory](https://github.com/hippie68/ps4-ftp/tree/main/scripts).
+
+#### Credits
+Development chain: [xerpi](https://github.com/xerpi/FTPS4) -> [idc](https://github.com/idc/libftps4) -> [xvortex](https://github.com/xvortex/ps4-ftp-vtx) -> [Scene-Collective](https://github.com/Scene-Collective/ps4-ftp) -> [hippie68](https://github.com/hippie68/ps4-ftp).  
+And thanks to SiSTRo for pointing out problems in the original FTPS4 code!
