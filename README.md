@@ -21,13 +21,13 @@ The improved PS4 FTP payload is available for download in the [release section](
 2. In the code's root directory, type "make clean && make" to compile.
 
 Optional: if you want to help debug, save your computer's IP address and port in the file ftp.h. Uncomment the line that says "//#define DEBUG_PS4" or use compiler option -DDEBUG_PS4. It will make the code larger and the FTP server less responsive, so only do this if you want to debug.  
-On your computer, start netcat or any similar TCP/IP program to listen to the debug output. IP address and port must match those specified in ftp.h. E.g.:
+On your computer, start netcat or any similar TCP/IP program to listen to the debug output. The computer's IP address and the specified port must match those saved in ftp.h. E.g.:
 
 ```
-    netcat -l 192.168.0.1 9023
+    netcat -l 9023
 ```
 
-This must be done before starting the payload.
+netcat must be started before starting the payload.
 
 ## How to compile for Linux
 
