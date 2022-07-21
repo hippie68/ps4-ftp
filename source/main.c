@@ -1,138 +1,22 @@
-#include "ps4.h"
-#include "ftps4.h"
-#include "ftp_debug.h"
+// FTP server for PS4 and Linux.
+// https://github.com/hippie68/ps4-ftp
 
-#define FTP_PORT 1337
+#include "ftp.h"
 
-int run;
-int decrypt;
+#define POLLING_INTERVAL 5 // Time to wait between checks for `run`.
 
-void custom_MTPROC(ftps4_client_info_t *client) {
-    int result = mkdir("/mnt/proc", 0777);
-    if (result >= 0 || (*__error()) == 17) {
-        result = mount("procfs", "/mnt/proc", 0, NULL);
-        if (result >= 0) {
-            ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
-            return;
-        } else {
-            ftps4_ext_client_send_ctrl_msg(client, "Failed to mount procfs!" FTPS4_EOL);
-        }
-    } else {
-        ftps4_ext_client_send_ctrl_msg(client, "Failed to create /mnt/proc!" FTPS4_EOL);
-    }
+_Atomic int run = 1; // The server keeps running as long as the value is 1.
 
-    ftps4_ext_client_send_ctrl_msg(client, "550 Could not mount!" FTPS4_EOL);
-    return;
-}
+/// For PS4 --------------------------------------------------------------------
 
-void custom_MTRW(ftps4_client_info_t *client) {
-    if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0) {
-        goto fail;
-    }
-    if (mount_large_fs("/dev/da0x0.crypt", "/preinst", "exfatfs", "511", MNT_UPDATE) < 0) {
-        goto fail;
-    }
-    if (mount_large_fs("/dev/da0x1.crypt", "/preinst2", "exfatfs", "511", MNT_UPDATE) < 0) {
-        goto fail;
-    }
-    if (mount_large_fs("/dev/da0x4.crypt", "/system", "exfatfs", "511", MNT_UPDATE) < 0) {
-        goto fail;
-    }
-    if (mount_large_fs("/dev/da0x5.crypt", "/system_ex", "exfatfs", "511", MNT_UPDATE) < 0) {
-        goto fail;
-    }
-    /* These fail to mount...
-    // mount_large_fs("/dev/da0x9.crypt", "/system_data", "exfatfs", "511", MNT_UPDATE)
-    // mount_large_fs("/dev/md0.crypt", "/", "exfatfs", "511", MNT_UPDATE)
-    */
+#ifdef PS4
 
-    ftps4_ext_client_send_ctrl_msg(client, "200 Mount success." FTPS4_EOL);
-    return;
-
-fail:
-    ftps4_ext_client_send_ctrl_msg(client, "550 Could not mount!" FTPS4_EOL);
-}
-
-void custom_DECRYPT(ftps4_client_info_t *client) {
-    if (decrypt == 0) {
-        ftps4_ext_client_send_ctrl_msg(client, "200 SELF decryption enabled..." FTPS4_EOL);
-        decrypt = 1;
-    } else {
-        ftps4_ext_client_send_ctrl_msg(client, "200 SELF decryption disabled..." FTPS4_EOL);
-        decrypt = 0;
-    }
-}
-
-static void custom_RETR(ftps4_client_info_t *client) {
-    char dest_path[PATH_MAX] = { 0 };
-    ftps4_gen_ftp_fullpath(client, dest_path, sizeof(dest_path));
-
-    if (decrypt && is_self(dest_path)) {
-        // Create unique temporary file to allow simultaneous decryptions
-        char temp_path[PATH_MAX];
-        sprintf(temp_path, "/user/temp/ftp_temp_file_%d", client->ctrl_sockfd);
-        while (file_exists(temp_path) && strlen(temp_path) + 1 < PATH_MAX) {
-            strcat(temp_path, "_");
-        }
-
-        decrypt_and_dump_self(dest_path, temp_path);
-        ftps4_send_file(client, temp_path);
-        unlink(temp_path);
-    } else {
-        ftps4_send_file(client, dest_path);
-    }
-}
-
-static void custom_SIZE(ftps4_client_info_t *client) {
-    struct stat s;
-    char path[PATH_MAX];
-    char cmd[64];
-
-    // Get the filename to retrieve its size
-    ftps4_gen_ftp_fullpath(client, path, sizeof(path));
-
-    // Check if the file exists
-    if (stat(path, &s) < 0) {
-        ftps4_ext_client_send_ctrl_msg(client, "550 The file does not exist." FTPS4_EOL);
-        return;
-    }
-
-    // If file is a SELF, decrypt it to retrieve the correct file size
-    if (decrypt && is_self(path)) {
-        char temp_path[PATH_MAX];
-        sprintf(temp_path, "/user/temp/ftp_temp_file_%d", client->ctrl_sockfd);
-        while (file_exists(temp_path) && strlen(temp_path) + 1 < PATH_MAX) {
-            strcat(temp_path, "_");
-        }
-
-        debug_msg("Now decrypting file \"%s\"", temp_path);
-
-        decrypt_and_dump_self(path, temp_path);
-        stat(temp_path, &s);
-        unlink(temp_path);
-    }
-
-    // Send the size of the file
-    sprintf(cmd, "213 %lld" FTPS4_EOL, s.st_size);
-    ftps4_ext_client_send_ctrl_msg(client, cmd);
-}
-
-// Obsolete, kept for compatibility purposes
-void custom_KILL(ftps4_client_info_t *client) {
-    ftps4_ext_client_send_ctrl_msg(client, "200 Killing downloads..." FTPS4_EOL);
-}
-
-void custom_SHUTDOWN(ftps4_client_info_t *client) {
-    ftps4_ext_client_send_ctrl_msg(client, "200 Shutting down..." FTPS4_EOL);
-    run = 0;
-}
-
+// Copies the PS4's current IP address string to a buffer.
 int get_ip_address(char *ip_address) {
-    int ret;
     SceNetCtlInfo info;
     memset_s(&info, sizeof(SceNetCtlInfo), 0, sizeof(SceNetCtlInfo));
 
-    ret = sceNetCtlInit();
+    int ret = sceNetCtlInit();
     if (ret >= 0) {
         ret = sceNetCtlGetInfo(SCE_NET_CTL_INFO_IP_ADDRESS, &info);
         if (ret >= 0) {
@@ -149,60 +33,102 @@ int get_ip_address(char *ip_address) {
 int _main(struct thread *td) {
     UNUSED(td);
 
-    char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = { 0 };
-    run = 1;
-    decrypt = 0;
-
     initKernel();
     initLibc();
     initNetwork();
     initPthread();
+    jailbreak();
+    mmap_patch();
+    initSysUtil();
 
-#ifdef DEBUG_SOCKET
+#ifdef DEBUG_PS4
     DEBUG_SOCK = SckConnect(DEBUG_IP, DEBUG_PORT);
 #endif
 
-    jailbreak();
-    mmap_patch();
+    printf_notification("FTP server " RELEASE_VERSION " by hippie68");
 
-    initSysUtil();
+    char ip_address[SCE_NET_CTL_IPV4_ADDR_STR_LEN] = { 0 };
+    if (get_ip_address(ip_address) >= 0) {
+        // Start FTP server.
+        init(ip_address, DEFAULT_PORT, DEFAULT_PATH);
 
-    printf_notification("Running FTP server\n(v1.05 by hippie68)");
+        // server_thread() in ftp.c will set run to 0 on binding error - give
+        // it some time to possibly do so.
+        sleep(3);
 
-    int ret = get_ip_address(ip_address);
-    if (ret >= 0) {
-        ftps4_init(ip_address, FTP_PORT); // Server will set "run" to 0 on binding error
-        ftps4_ext_add_command("MTPROC", custom_MTPROC);
-        ftps4_ext_add_command("DECRYPT", custom_DECRYPT);
-        ftps4_ext_del_command("RETR");
-        ftps4_ext_add_command("RETR", custom_RETR);
-        ftps4_ext_add_command("SHUTDOWN", custom_SHUTDOWN);
-        ftps4_ext_del_command("SIZE");
-        ftps4_ext_add_command("SIZE", custom_SIZE);
-        ftps4_ext_add_command("MTRW", custom_MTRW);
-        ftps4_ext_add_command("KILL", custom_KILL);
-
-        // Give the server some time to possibly change "run"
-        sceKernelSleep(5);
+        // Display IP address and port in form of a PS4 notification popup.
         if (run) {
-            printf_notification("Listening on\nIP:     %s\nPort: %i", ip_address, FTP_PORT);
+            printf_notification("Listening on\nIP:     %s\nPort: %u",
+                ip_address, DEFAULT_PORT);
         }
 
+        // Loop until receiving the SHUTDOWN command, which sets run to 0.
         while (run) {
-            sceKernelSleep(5);
+            sleep(POLLING_INTERVAL);
         }
 
-        ftps4_fini();
+        // Exit FTP server.
+        fini();
     } else {
-        printf_notification("Unable to get IP address");
+        printf_notification("Unable to get the PS4's IP address");
     }
 
     printf_notification("Shutting down FTP server...");
-
-#ifdef DEBUG_SOCKET
-    printf_debug("Closing debug socket...\n");
-    SckClose(DEBUG_SOCK);
+#ifdef DEBUG_PS4
+    sceNetSocketClose(DEBUG_SOCK);
 #endif
-
     return 0;
 }
+
+/// For non-PS4 ----------------------------------------------------------------
+
+#else
+
+void print_usage(FILE *stream, char *program_name) {
+    fprintf(stream,
+        "Usage: %s [OPTIONS] [PORT]\n\n"
+        "Starts an anonymous FTP server in the current directory.\n\nOptions:\n"
+        "  -h, --help  Print help information and quit.\n", program_name);
+}
+
+int main(int argc, char **argv) {
+    if (argc > 2 || (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1],
+        "--help") == 0))) {
+        print_usage(argc > 2 ? stderr : stdout, argv[0]);
+        return (argc > 2);
+    }
+
+    // Set IPv4 address or hostname, and port.
+    char *ip = "127.0.0.1";
+    unsigned short port = DEFAULT_PORT;
+    if (argv[1]) {
+        port = atoi(argv[1]);
+        if (port == 0) {
+            print_usage(stderr, argv[0]);
+            return 1;
+        }
+    }
+
+    // Start FTP server.
+    char path[PATH_MAX];
+    if (getcwd(path, sizeof(path)) == NULL) {
+        if (init(ip, port, DEFAULT_PATH)) {
+            return 1;
+        }
+    } else {
+        if (init(ip, port, path)) {
+            return 1;
+        }
+    }
+
+    // Loop until receiving the SHUTDOWN command, which sets run to 0.
+    while (run) {
+        sleep(POLLING_INTERVAL);
+    }
+
+    // Exit FTP server.
+    fini();
+    return 0;
+}
+
+#endif
