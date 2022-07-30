@@ -12,7 +12,8 @@ _Atomic int run = 1; // The server keeps running as long as the value is 1.
 #ifdef PS4
 
 // Copies the PS4's current IP address string to a buffer.
-int get_ip_address(char *ip_address) {
+int get_ip_address(char *ip_address)
+{
     SceNetCtlInfo info;
     memset_s(&info, sizeof(SceNetCtlInfo), 0, sizeof(SceNetCtlInfo));
 
@@ -22,7 +23,6 @@ int get_ip_address(char *ip_address) {
         if (ret >= 0) {
             memcpy(ip_address, info.ip_address, sizeof(info.ip_address));
             sceNetCtlTerm();
-
             return ret;
         }
     }
@@ -30,7 +30,8 @@ int get_ip_address(char *ip_address) {
     return -1;
 }
 
-int _main(struct thread *td) {
+int _main(struct thread *td)
+{
     UNUSED(td);
 
     initKernel();
@@ -74,9 +75,11 @@ int _main(struct thread *td) {
     }
 
     printf_notification("Shutting down FTP server...");
+
 #ifdef DEBUG_PS4
     sceNetSocketClose(DEBUG_SOCK);
 #endif
+
     return 0;
 }
 
@@ -84,14 +87,16 @@ int _main(struct thread *td) {
 
 #else
 
-void print_usage(FILE *stream, char *program_name) {
+void print_usage(FILE *stream, char *program_name)
+{
     fprintf(stream,
         "Usage: %s [OPTIONS] [PORT]\n\n"
         "Starts an anonymous FTP server in the current directory.\n\nOptions:\n"
         "  -h, --help  Print help information and quit.\n", program_name);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     if (argc > 2 || (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1],
         "--help") == 0))) {
         print_usage(argc > 2 ? stderr : stdout, argv[0]);

@@ -52,29 +52,27 @@ static pthread_mutex_t client_list_mtx; // Linked list's lock
 
 // PS4 is missing tolower() and strcasecmp().
 #ifdef PS4
-static inline int tolower(int c) {
+static inline int tolower(int c)
+{
     if (c >= 'A' && c <= 'Z') {
-        return c + 32;
-    } else {
-        return c;
+        c += 32;
     }
+    return c;
 }
 
-static int strcasecmp(const char *s1, const char *s2) {
-    char buf1[strlen(s1) + 1];
-    char buf2[strlen(s2) + 1];
+static int strcasecmp(const char *s1, const char *s2)
+{
+    int c1, c2;
 
-    strcpy(buf1, s1);
-    strcpy(buf2, s2);
+    do {
+        c1 = tolower(*s1);
+        c2 = tolower(*s2);
+        if (c1 != c2) {
+            break;
+        }
+    } while (*s1++ && *s2++);
 
-    for (unsigned int i = 0; i < sizeof(buf1) - 1; i++) {
-        buf1[i] = tolower(buf1[i]);
-    }
-    for (unsigned int i = 0; i < sizeof(buf2) - 1; i++) {
-        buf2[i] = tolower(buf2[i]);
-    }
-
-    return (strcmp(buf1, buf2));
+    return c1 - c2;
 }
 #endif
 
@@ -82,14 +80,16 @@ static int strcasecmp(const char *s1, const char *s2) {
 
 // Checks if a file or path exists on the FTP server.
 // Used in FTP commands LIST and RNFR.
-static int ftp_file_exists(const char *path) {
+static int ftp_file_exists(const char *path)
+{
     struct stat s;
     return (stat(path, &s) >= 0);
 }
 
 // Opens a client's data connection, returning < 0 on error.
 // Used in FTP commands RETR and STOR.
-static int open_data_connection(struct client_info *client) {
+static int open_data_connection(struct client_info *client)
+{
     int ret;
 
     if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
@@ -108,7 +108,8 @@ static int open_data_connection(struct client_info *client) {
 
 // Closes a client's data connection.
 // Used in FTP commands RETR and STOR.
-static void close_data_connection(struct client_info *client) {
+static void close_data_connection(struct client_info *client)
+{
     if (client->data_con_type == FTP_DATA_CONNECTION_NONE) {
         return;
     }
@@ -123,7 +124,8 @@ static void close_data_connection(struct client_info *client) {
 
 // Causes a client's thread to exit.
 // Used by FTP command QUIT and function client_list_terminate().
-static void client_thread_exit(struct client_info *client) {
+static void client_thread_exit(struct client_info *client)
+{
     // Abort any open data connections.
     if (client->data_con_type != FTP_DATA_CONNECTION_NONE) {
 #ifdef PS4
@@ -155,7 +157,8 @@ static void client_thread_exit(struct client_info *client) {
 
 // Sends a string via a client's data connection.
 // Used in FTP commands LIST and NLST.
-static inline void send_data_msg(struct client_info *client, char *str) {
+static inline void send_data_msg(struct client_info *client, char *str)
+{
     if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
         send(client->data_sockfd, str, strlen(str), 0);
     } else {
@@ -168,7 +171,8 @@ static inline void send_data_msg(struct client_info *client, char *str) {
 // buffer. The buffer should be of size PATH_MAX in order not to get truncated.
 // Used in FTP commands CWD, DELE, MKD, RETR, RMD, RNFR, RNTO, and STOR.
 static int gen_ftp_path(struct client_info *client, char *buf,
-    size_t buf_size) {
+    size_t buf_size)
+{
     if (client->cur_path[0] != '/') {
         debug_msg("Invalid input path.\n");
         return -1;
@@ -197,14 +201,14 @@ static int gen_ftp_path(struct client_info *client, char *buf,
 // characters, as required by the FTP standard. The buffer must be large enough
 // to hold the additional characters, e.g. strlen(source) * 2 + 1.
 // Used in FTP commands MKD and PWD.
-static int gen_quoted_path(char *buf, int buf_size, char *source) {
+static int gen_quoted_path(char *buf, int buf_size, char *source)
+{
     if (source == NULL) {
         debug_msg("String is NULL.\n");
         return -1;
     }
 
     int len = strlen(source);
-
     int i = 0, buf_i = 0;
     for (; i < len && buf_i < buf_size - 1; i++, buf_i++) {
         buf[buf_i] = source[i];
@@ -224,7 +228,8 @@ static int gen_quoted_path(char *buf, int buf_size, char *source) {
 
 // Sets a client's current directory to its parent directory.
 // Used in FTP commands CWD and CDUP.
-static int dir_up(struct client_info *client) {
+static int dir_up(struct client_info *client)
+{
 #ifdef PS4 // Does not have access().
     char *slash = strrchr(client->cur_path, '/');
     if (slash == NULL) {
@@ -265,20 +270,10 @@ static int dir_up(struct client_info *client) {
 #endif
 }
 
-// Receives data from a client and stores it in a buffer.
-// Used in FTP commands APPE and STOR.
-static inline ssize_t recv_data_raw(struct client_info *client, void *buf,
-    unsigned int len) {
-    if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
-        return recv(client->data_sockfd, buf, len, 0);
-    } else {
-        return recv(client->pasv_sockfd, buf, len, 0);
-    }
-}
-
 // Receives a file from the client and stores it on the server.
 // Used in FTP commands APPE and STOR.
-static void recv_file(struct client_info *client, const char *path) {
+static void recv_file(struct client_info *client, const char *path)
+{
     // Set file flags for open().
     int flags = O_CREAT | O_RDWR; // Create file if necessary, open in r/w mode.
     if (client->restore_point) {
@@ -295,55 +290,51 @@ static void recv_file(struct client_info *client, const char *path) {
         return;
     }
 
-    // Allocate data transfer buffer.
-    unsigned char *buffer;
-    buffer = malloc(FILE_BUF_SIZE);
-    if (buffer == NULL) {
-        debug_msg("Could not allocate memory.\n");
-        close(fd);
-        send_ctrl_msg(client, RC_451);
-        return;
-    }
-
     // Open data connection.
     send_ctrl_msg(client, RC_150);
     if (open_data_connection(client) < 0) {
-        close(fd);
-        free(buffer);
         send_ctrl_msg(client, RC_425);
+        close(fd);
         return;
     }
 
     // Receive remote file data and write it to local file.
-    unsigned int bytes_recv;
-    while ((bytes_recv = recv_data_raw(client, buffer, sizeof(buffer))) > 0) {
-        int ret;
-        if ((ret = write(fd, buffer, bytes_recv)) < 0) {
-            debug_retval(ret);
+    unsigned char buffer[FILE_BUF_SIZE];
+    int bytes_recv;
+    int sockfd;
+    if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
+        sockfd = client->data_sockfd;
+    } else {
+        sockfd = client->pasv_sockfd;
+    }
+    while ((bytes_recv = recv(sockfd, buffer, sizeof(buffer), 0)) > 0) {
+        if (write(fd, buffer, bytes_recv) < 0) {
             close(fd);
-            free(buffer);
+            close_data_connection(client);
             send_ctrl_msg(client, RC_451);
             return;
         }
     }
 
-    close(fd);
-    free(buffer);
     client->restore_point = 0;
+    close(fd);
+    close_data_connection(client);
+
     if (bytes_recv == 0) { // Success.
         send_ctrl_msg(client, RC_226);
     } else {
+        debug_retval(bytes_recv);
         debug_func(unlink(path)); // Delete the partially transferred file.
         send_ctrl_msg(client, RC_426);
     }
-    close_data_connection(client);
 }
 
 #ifdef PS4
 // Decrypts a SELF file and stores the decrypted file's path in a buffer.
 // Used in FTP commands RETR and SIZE.
 static int decrypt_temp(struct client_info *client, char *file_path, char *buf,
-    size_t bufsize) {
+    size_t bufsize)
+{
     char temp_path[bufsize];
 
     // Create a unique file name.
@@ -371,21 +362,22 @@ static int decrypt_temp(struct client_info *client, char *file_path, char *buf,
 
 // APPE (Append or create) "APPE <SP> <pathname> <CRLF>" -----------------------
 
-static void cmd_APPE(struct client_info *client) {
-    client->restore_point = -1; // Tell recv_file() to use the O_APPEND flag.
-
+static void cmd_APPE(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_553);
         return;
     }
 
+    client->restore_point = -1; // Tell recv_file() to use the O_APPEND flag.
     recv_file(client, path);
 }
 
 // CDUP (Change to parent directory) "CDUP <CRLF>" -----------------------------
 
-static void cmd_CDUP(struct client_info *client) {
+static void cmd_CDUP(struct client_info *client)
+{
     if (dir_up(client)) {
         send_ctrl_msg(client, RC_550);
     } else {
@@ -395,7 +387,8 @@ static void cmd_CDUP(struct client_info *client) {
 
 // CWD (Change working directory) "CWD <SP> <pathname <CRLF>" ------------------
 
-static void cmd_CWD(struct client_info *client) {
+static void cmd_CWD(struct client_info *client)
+{
     if (strcmp(client->cmd_args, "..") == 0) {
         dir_up(client);
     } else if (strcmp(client->cmd_args, ".") == 0) {
@@ -411,8 +404,7 @@ static void cmd_CWD(struct client_info *client) {
 #ifdef PS4
     if (ftp_file_exists(path)) {
 #else
-    int ret;
-    if ((ret = access(path, R_OK)) == 0) {
+    if (access(path, R_OK) == 0) {
 #endif
         strncpy(client->cur_path, path, sizeof(client->cur_path));
         send_ctrl_msg(client, RC_250);
@@ -423,7 +415,8 @@ static void cmd_CWD(struct client_info *client) {
 
 // DELE (Delete) "DELE <SP> <pathname> <CRLF>" ---------------------------------
 
-static void cmd_DELE(struct client_info *client) {
+static void cmd_DELE(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_550);
@@ -441,8 +434,10 @@ static void cmd_DELE(struct client_info *client) {
 
 // FEAT (Feature) "FEAT <CRLF>" ------------------------------------------------
 
-static void cmd_FEAT(struct client_info *client) {
+static void cmd_FEAT(struct client_info *client)
+{
     send_ctrl_msg(client, "211-Extensions:" CRLF);
+    send_ctrl_msg(client, " MDTM" CRLF);
     send_ctrl_msg(client, " REST STREAM" CRLF);
     send_ctrl_msg(client, " SIZE" CRLF);
     send_ctrl_msg(client, "211 END" CRLF);
@@ -450,187 +445,194 @@ static void cmd_FEAT(struct client_info *client) {
 
 // LIST (List) "LIST [<SP> <pathname>] <CRLF>" ---------------------------------
 
-static char file_type_char(mode_t mode) {
-    return S_ISBLK(mode) ? 'b' : S_ISCHR(mode) ? 'c' : S_ISREG(mode) ? '-'
-        : S_ISDIR(mode) ? 'd' : S_ISFIFO(mode) ? 'p' : S_ISSOCK(mode) ? 's'
-        : S_ISLNK(mode) ? 'l' : ' ';
-}
-
-static int gen_list_format(char *out, int n, mode_t file_mode,
-    unsigned long long file_size, const struct tm file_tm,
-    const char *file_name, const char *link_name, const struct tm cur_tm) {
+static int gen_list_format(char *out, int n, struct stat *st, char *file_name,
+    char *link_name, int cur_year)
+{
     static const char num_to_month[][4] = { "Jan", "Feb", "Mar", "Apr", "May",
         "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
 
+    struct tm file_tm;
+    gmtime_r(&st->st_mtim.tv_sec, &file_tm);
     char yt[6];
-    if (cur_tm.tm_year == file_tm.tm_year) {
+    if (file_tm.tm_year == cur_year) {
         snprintf(yt, sizeof(yt), "%02d:%02d", file_tm.tm_hour, file_tm.tm_min);
     } else {
-        snprintf(yt, sizeof(yt), "%04d", 1900 + file_tm.tm_year);
+        snprintf(yt, sizeof(yt), "%04d", 1900 + cur_year);
     }
 
-#ifdef PS4
-#define LIST_FMT "%c%c%c%c%c%c%c%c%c%c 1 ps4 ps4 %llu %s %2d %s %s"
-#else
-#define LIST_FMT "%c%c%c%c%c%c%c%c%c%c 1 ftp ftp %llu %s %2d %s %s"
-#endif
-
-#define LIST_ARGS                                       \
-    file_type_char(file_mode),                          \
-    file_mode & 0400 ? 'r' : '-',                       \
-    file_mode & 0200 ? 'w' : '-',                       \
-    file_mode & 0100 ? (S_ISDIR(file_mode) ? 's' : 'x') \
-        : (S_ISDIR(file_mode) ? 'S' : '-'),             \
-    file_mode & 040 ? 'r' : '-',                        \
-    file_mode & 020 ? 'w' : '-',                        \
-    file_mode & 010 ? (S_ISDIR(file_mode) ? 's' : 'x')  \
-        : (S_ISDIR(file_mode) ? 'S' : '-'),             \
-    file_mode & 04 ? 'r' : '-',                         \
-    file_mode & 02 ? 'w' : '-',                         \
-    file_mode & 01 ? (S_ISDIR(file_mode) ? 's' : 'x')   \
-        : (S_ISDIR(file_mode) ? 'S' : '-'),             \
-    file_size,                                          \
-    num_to_month[file_tm.tm_mon % 12],                  \
-    file_tm.tm_mday,                                    \
-    yt,                                                 \
+#define LIST_FMT "%c%c%c%c%c%c%c%c%c%c %ld %d %d %ld %s %2d %s %s"
+#define LIST_ARGS                                                  \
+    S_ISREG(st->st_mode) ? '-' : S_ISDIR(st->st_mode) ? 'd'        \
+        : S_ISLNK(st->st_mode) ? 'l' : S_ISBLK(st->st_mode) ? 'b'  \
+        : S_ISCHR(st->st_mode) ? 'c' : S_ISFIFO(st->st_mode) ? 'p' \
+        : S_ISSOCK(st->st_mode) ? 's' : '?',                       \
+    st->st_mode & 0400 ? 'r' : '-',                                \
+    st->st_mode & 0200 ? 'w' : '-',                                \
+    st->st_mode & 0100 ? (st->st_mode & 04000 ? 's' : 'x')         \
+        : st->st_mode & 04000 ? 'S' : '-',                         \
+    st->st_mode & 040 ? 'r' : '-',                                 \
+    st->st_mode & 020 ? 'w' : '-',                                 \
+    st->st_mode & 010 ? (st->st_mode & 02000 ? 's' : 'x')          \
+        : st->st_mode & 02000 ? 'S' : '-',                         \
+    st->st_mode & 04 ? 'r' : '-',                                  \
+    st->st_mode & 02 ? 'w' : '-',                                  \
+    st->st_mode & 01 ? (st->st_mode & 01000 ? 't' : 'x')           \
+        : st->st_mode & 01000 ? 'T' : '-',                         \
+    st->st_nlink,                                                  \
+    st->st_uid,                                                    \
+    st->st_gid,                                                    \
+    st->st_size,                                                   \
+    num_to_month[file_tm.tm_mon],                                  \
+    file_tm.tm_mday,                                               \
+    yt,                                                            \
     file_name
 
-    if (!S_ISLNK(file_mode) || link_name[0] == '\0') {
-        return snprintf(out, n, LIST_FMT CRLF, LIST_ARGS);
+    if (link_name) {
+        return snprintf(out, n, LIST_FMT " -> %s" CRLF, LIST_ARGS, link_name);
     } else {
-        return snprintf(out, n, LIST_FMT " -> %s" CRLF, LIST_ARGS,
-            link_name);
+        return snprintf(out, n, LIST_FMT CRLF, LIST_ARGS);
     }
-#undef LIST_ARGS
+
 #undef LIST_FMT
+#undef LIST_ARGS
 }
 
-static void send_LIST(struct client_info *client, const char *path) {
+// Sends list information about a file or directory via the data connection.
+static void send_list_item(struct client_info *client, char *path,
+    char *filename, int cur_year)
+{
     char buffer[CMD_LINE_BUF_SIZE];
-    char *dentbuf;
-    size_t dentbufsize;
-    int dfd, dentsize, err, readlinkerr;
     struct stat st;
-    time_t cur_time;
-    struct tm tm, cur_tm;
 
-    if ((err = stat(path, &st)) < 0) {
-        debug_retval(err);
-        send_ctrl_msg(client, RC_550);
+    int ret = stat(path, &st);
+    if (ret < 0) {
+        debug_retval(ret);
         return;
     }
 
-    dentbufsize = st.st_blksize;
-
-    dfd = open(path, O_RDONLY, 0);
-    if (dfd < 0) {
-        debug_retval(dfd);
-        send_ctrl_msg(client, RC_550);
-        return;
+    // Get symbolic link.
+    char link_path[PATH_MAX];
+    link_path[0] = '\0';
+    if (S_ISLNK(st.st_mode)) {
+        ssize_t n = readlink(path, link_path, sizeof(link_path));
+        if (n > 0) {
+            link_path[n] = '\0';
+        } else {
+            debug_retval((int) n);
+        }
     }
 
-    dentbuf = malloc(dentbufsize);
-    if (dentbuf == NULL) {
-        debug_msg("Could not allocate memory.\n");
-        close(dfd);
-        send_ctrl_msg(client, RC_451);
+    gen_list_format(buffer, sizeof(buffer), &st, filename,
+        link_path[0] ? link_path : NULL, cur_year);
+
+    send_data_msg(client, buffer);
+}
+
+static void send_list(struct client_info *client, char *path)
+{
+    DIR *dfd;
+    struct dirent *dp;
+    struct stat st;
+
+    // Check if path is a directory.
+    int is_dir;
+    int ret = stat(path, &st);
+    if (ret < 0) {
+        debug_retval(ret);
         return;
     }
-    memset(dentbuf, 0, dentbufsize);
+    is_dir = S_ISDIR(st.st_mode);
 
+    if (is_dir) {
+        // Open directory.
+        if ((dfd = opendir(path)) == NULL) {
+            send_ctrl_msg(client, RC_550);
+            return;
+        }
+    }
+
+    // Open data connection.
     send_ctrl_msg(client, RC_150);
     if (open_data_connection(client) < 0) {
-        free(dentbuf);
-        close(dfd);
+        if (is_dir) {
+            closedir(dfd);
+        }
         send_ctrl_msg(client, RC_425);
         return;
     }
 
+    // Get current year.
+    time_t cur_time;
+    struct tm cur_tm;
     time(&cur_time);
-#ifdef PS4
-    gmtime_s(&cur_time, &cur_tm);
-#else
     gmtime_r(&cur_time, &cur_tm);
-#endif
 
-    while ((dentsize = getdents(dfd, dentbuf, dentbufsize)) > 0) {
-#ifdef PS4
-        struct dirent *dent;
-        struct dirent *dend;
-        dent = (struct dirent *) dentbuf;
-        dend = (struct dirent *) &dentbuf[dentsize];
-#else
-        struct linux_dirent *dent;
-        struct linux_dirent *dend;
-        dent = (struct linux_dirent *) dentbuf;
-        dend = (struct linux_dirent *) &dentbuf[dentsize];
-#endif
-
-        while (dent != dend) {
-            if (dent->d_name[0] != '\0') {
-                char full_path[PATH_MAX];
-                snprintf(full_path, sizeof(full_path), "%s/%s", path,
-                    dent->d_name);
-
-                err = stat(full_path, &st);
-
-                if (err == 0) {
-                    char link_path[PATH_MAX] = { 0 };
-                    if (S_ISLNK(st.st_mode)) {
-                        if ((readlinkerr = readlink(full_path, link_path,
-                            sizeof(link_path))) > 0) {
-                            link_path[readlinkerr] = 0;
-                        } else {
-                            link_path[0] = 0;
-                        }
-                    }
-#ifdef PS4
-                    gmtime_s(&st.st_ctim.tv_sec, &tm);
-#else
-                    gmtime_r(&st.st_ctim.tv_sec, &tm);
-#endif
-                    gen_list_format(buffer, sizeof(buffer), st.st_mode,
-                        st.st_size, tm, dent->d_name, S_ISLNK(st.st_mode)
-                        && link_path[0] != '\0' ? link_path : NULL, cur_tm);
-
-                    send_data_msg(client, buffer);
-                } else {
-                    debug_msg("Invalid path: %s\n", full_path);
-                }
-            }
-#ifdef PS4
-            dent = (struct dirent *) ((char *) dent + dent->d_reclen);
-#else
-            dent = (struct linux_dirent *) ((char *) dent + dent->d_reclen);
-#endif
+    if (is_dir) { // Send directory content list.
+        while ((dp = readdir(dfd)) != NULL) {
+            char file_path[PATH_MAX];
+            snprintf(file_path, sizeof(file_path), "%s/%s", path, dp->d_name);
+            send_list_item(client, file_path, dp->d_name, cur_tm.tm_year);
         }
-        memset(dentbuf, 0, dentbufsize);
+        closedir(dfd);
+    } else { // Send single-file list.
+        send_list_item(client, path, path, cur_tm.tm_year);
     }
 
-    close(dfd);
-    free(dentbuf);
-    send_ctrl_msg(client, RC_226);
     close_data_connection(client);
+    send_ctrl_msg(client, RC_226);
 }
 
-static void cmd_LIST(struct client_info *client) {
-    // TODO: support for single-file-arg.
+static void cmd_LIST(struct client_info *client)
+{
     if (client->cmd_args) {
-        if (ftp_file_exists(client->cmd_args)) {
-            send_LIST(client, client->cmd_args);
+        char path[PATH_MAX];
+        if (gen_ftp_path(client, path, sizeof(path))) {
+            send_ctrl_msg(client, RC_550);
+            return;
+        }
+
+        if (ftp_file_exists(path)) {
+            send_list(client, path);
         } else if (strcmp("-a", client->cmd_args) == 0) { // "Show all files".
-            send_LIST(client, client->cur_path);
+            send_list(client, client->cur_path);
         } else {
             send_ctrl_msg(client, RC_550);
         }
     } else {
-        send_LIST(client, client->cur_path);
+        send_list(client, client->cur_path);
     }
+}
+
+// MDTM (Modification time) "MDTM <SP> <pathname> <CRLF>" ----------------------
+
+static void cmd_MDTM(struct client_info *client)
+{
+    char path[PATH_MAX];
+    if (gen_ftp_path(client, path, sizeof(path))) {
+        send_ctrl_msg(client, RC_550);
+        return;
+    }
+
+    struct stat st;
+    if (stat(path, &st) < 0) {
+        send_ctrl_msg(client, RC_550);
+        return;
+    }
+
+    struct tm t;
+    if (gmtime_r(&st.st_mtim.tv_sec, &t) == NULL) {
+        send_ctrl_msg(client, RC_451);
+        return;
+    }
+
+    sendf_ctrl_msg(client, "213 %d%02d%02d%02d%02d%02d" CRLF,
+        1900 + t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 // MKD (Make directory) "MKD <SP> <pathname> <CRLF>" ---------------------------
 
-static void cmd_MKD(struct client_info *client) {
+static void cmd_MKD(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_553);
@@ -642,18 +644,19 @@ static void cmd_MKD(struct client_info *client) {
         debug_retval(ret);
         send_ctrl_msg(client, RC_550);
     } else {
-        char final_path[strlen(path) * 2 + 1];
-        if (gen_quoted_path(final_path, sizeof(final_path), path) < 0) {
+        char quoted_path[strlen(path) * 2 + 1];
+        if (gen_quoted_path(quoted_path, sizeof(quoted_path), path) < 0) {
             send_ctrl_msg(client, RC_550);
             return;
         }
-        sendf_ctrl_msg(client, "257 \"%s\" created." CRLF, path);
+        sendf_ctrl_msg(client, "257 \"%s\" created." CRLF, quoted_path);
     }
 }
 
 // MODE (Transfer mode) "MODE <SP> <structure-code> <CRLF>" --------------------
 
-static void cmd_MODE(struct client_info *client) {
+static void cmd_MODE(struct client_info *client)
+{
     if (client->cmd_args[0] == 'S' || client->cmd_args[0] == 's') {
         send_ctrl_msg(client, RC_200);
     } else {
@@ -670,7 +673,8 @@ static void cmd_MODE(struct client_info *client) {
     b = temp;            \
 }
 
-void dumbsort(char **arr, ssize_t n) {
+void dumbsort(char **arr, ssize_t n)
+{
     for (ssize_t i = 0; i < n - 1; i++) {
         ssize_t lowest = i;
         for (ssize_t j = i; j < n; j++) {
@@ -682,12 +686,14 @@ void dumbsort(char **arr, ssize_t n) {
     }
 }
 #else
-static int qsort_strcasecmp(const void *a, const void *b) {
+static int qsort_strcasecmp(const void *a, const void *b)
+{
     return strcasecmp(*(const char **) a, *(const char **) b);
 }
 #endif
 
-static void cmd_NLST(struct client_info *client) {
+static void cmd_NLST(struct client_info *client)
+{
     struct dirent *dp;
     DIR *dfd;
     char dir[PATH_MAX];
@@ -707,11 +713,12 @@ static void cmd_NLST(struct client_info *client) {
         return;
     }
 
+    // Open data connection.
+    send_ctrl_msg(client, RC_150);
     if (open_data_connection(client) < 0) {
         send_ctrl_msg(client, RC_425);
         return;
     }
-    send_ctrl_msg(client, RC_150);
 
     int flist_size = 0;
     char **flist = malloc(0);
@@ -739,7 +746,7 @@ static void cmd_NLST(struct client_info *client) {
         flist[flist_size -1] = file_name;
     }
 
-    // Print sorted file list.
+    // Send sorted file list.
 #ifdef PS4
     dumbsort(flist, flist_size);
 #else
@@ -748,6 +755,7 @@ static void cmd_NLST(struct client_info *client) {
     for (int i = 0; i < flist_size; i++) {
         send_data_msg(client, flist[i]);
     }
+    close_data_connection(client);
     send_ctrl_msg(client, RC_226);
 
     clean_up:
@@ -756,30 +764,33 @@ static void cmd_NLST(struct client_info *client) {
     }
     free(flist);
     closedir(dfd);
-    close_data_connection(client);
     return;
 
     out_of_memory:
     debug_msg("Could not allocate memory.\n");
+    close_data_connection(client);
     send_ctrl_msg(client, RC_451);
     goto clean_up;
 }
 
 // NOOP (No operation) "NOOP <CRLF>" -------------------------------------------
 
-static void cmd_NOOP(struct client_info *client) {
+static void cmd_NOOP(struct client_info *client)
+{
     send_ctrl_msg(client, RC_200);
 }
 
 // PASS (Password) "PASS <SP> <password> <CRLF>" -------------------------------
 
-static void cmd_PASS(struct client_info *client) {
+static void cmd_PASS(struct client_info *client)
+{
     send_ctrl_msg(client, RC_202);
 }
 
 // PASV (Passive) "PASV <CRLF>" ------------------------------------------------
 
-static void cmd_PASV(struct client_info *client) {
+static void cmd_PASV(struct client_info *client)
+{
     close_data_connection(client); // Drop any connections already made.
 
     if ((client->data_sockfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -814,8 +825,9 @@ static void cmd_PASV(struct client_info *client) {
     struct sockaddr_in pasv_addr;
     socklen_t namelen = sizeof(pasv_addr);
 
-    if (getsockname(client->data_sockfd, (struct sockaddr *) &pasv_addr,
-        &namelen) < 0) {
+    if ((ret = getsockname(client->data_sockfd, (struct sockaddr *) &pasv_addr,
+        &namelen)) < 0) {
+        debug_retval(ret);
         SOCKETCLOSE(client->data_sockfd);
         send_ctrl_msg(client, RC_451);
         return;
@@ -834,7 +846,8 @@ static void cmd_PASV(struct client_info *client) {
 
 // PORT (Data port) "SP> <host-port> <CRLF>" -----------------------------------
 
-static void cmd_PORT(struct client_info *client) {
+static void cmd_PORT(struct client_info *client)
+{
     unsigned char data_ip[4];
     unsigned char porthi = 0;
     unsigned char portlo = 0;
@@ -870,7 +883,8 @@ static void cmd_PORT(struct client_info *client) {
 
 // PWD (Print working directory) "PWD <CRLF>" ----------------------------------
 
-static void cmd_PWD(struct client_info *client) {
+static void cmd_PWD(struct client_info *client)
+{
     char path[strlen(client->cur_path) * 2 + 1];
     if (gen_quoted_path(path, sizeof(path), client->cur_path) < 0) {
         send_ctrl_msg(client, RC_550);
@@ -882,14 +896,16 @@ static void cmd_PWD(struct client_info *client) {
 
 // QUIT (Close connection) "QUIT <CRLF>" ---------------------------------------
 
-static void cmd_QUIT(struct client_info *client) {
+static void cmd_QUIT(struct client_info *client)
+{
     send_ctrl_msg(client, RC_221);
     client_thread_exit(client);
 }
 
 // REST (Restart) "REST <SP> <marker> <CRLF> -----------------------------------
 
-static void cmd_REST(struct client_info *client) {
+static void cmd_REST(struct client_info *client)
+{
     long marker;
     if (sscanf(client->cmd_args, "%ld", &marker) != 1) {
         send_ctrl_msg(client, RC_501);
@@ -902,16 +918,8 @@ static void cmd_REST(struct client_info *client) {
 
 // RETR (Retreive) "RETR <SP> <pathname> <CRLF>" -------------------------------
 
-static inline int send_data_raw(struct client_info *client,
-    const void *buf, size_t len) {
-    if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
-        return send(client->data_sockfd, buf, len, 0);
-    } else {
-        return send(client->pasv_sockfd, buf, len, 0);
-    }
-}
-
-static void send_file(struct client_info *client, const char *path) {
+static void send_file(struct client_info *client, const char *path)
+{
     int fd;
 
     // Open local file.
@@ -923,52 +931,46 @@ static void send_file(struct client_info *client, const char *path) {
     // Skip to a previous REST command's offset.
     if (client->restore_point > 0
         && lseek(fd, client->restore_point, SEEK_SET) < 0) {
-        close(fd);
         send_ctrl_msg(client, RC_550);
-        return;
-    }
-
-    // Allocate data transfer buffer.
-    unsigned char *buffer;
-    buffer = malloc(FILE_BUF_SIZE);
-    if (buffer == NULL) {
         close(fd);
-        send_ctrl_msg(client, RC_451);
         return;
     }
-
 
     // Open data connection.
     send_ctrl_msg(client, RC_150);
     if (open_data_connection(client) < 0) {
-        close(fd);
-        free(buffer);
         send_ctrl_msg(client, RC_425);
+        close(fd);
         return;
     }
 
     // Send the file.
+    unsigned char buffer[FILE_BUF_SIZE];
     int bytes_read;
+    int sockfd;
+    if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE) {
+        sockfd = client->data_sockfd;
+    } else {
+        sockfd = client->pasv_sockfd;
+    }
     while ((bytes_read = read(fd, buffer, FILE_BUF_SIZE)) > 0) {
-        if (bytes_read != send_data_raw(client, buffer,
-            bytes_read)) {
+        if (bytes_read != send(sockfd, buffer, bytes_read, 0)) {
             close(fd);
-            free(buffer);
+            close_data_connection(client);
             send_ctrl_msg(client, RC_426);
             return;
         }
     }
 
-    close(fd);
-    free(buffer);
     client->restore_point = 0;
-    send_ctrl_msg(client, RC_226);
+    close(fd);
     close_data_connection(client);
+    send_ctrl_msg(client, RC_226);
 }
 
-static void cmd_RETR(struct client_info *client) {
+static void cmd_RETR(struct client_info *client)
+{
     char path[PATH_MAX];
-
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_550);
         return;
@@ -991,7 +993,8 @@ static void cmd_RETR(struct client_info *client) {
 
 // RMD (Remove directory) "RMD <SP> <pathname> <CRLF>" -------------------------
 
-static void delete_dir(struct client_info *client, const char *path) {
+static void delete_dir(struct client_info *client, const char *path)
+{
     if (rmdir(path) >= 0) {
         send_ctrl_msg(client, RC_250);
     } else if (errno == 66) { // ENOTEMPTY
@@ -1001,7 +1004,8 @@ static void delete_dir(struct client_info *client, const char *path) {
     }
 }
 
-static void cmd_RMD(struct client_info *client) {
+static void cmd_RMD(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_550);
@@ -1013,7 +1017,8 @@ static void cmd_RMD(struct client_info *client) {
 
 // RNFR (Rename from) "RNFR <SP> <pathname> <CRLF>" ----------------------------
 
-static void cmd_RNFR(struct client_info *client) {
+static void cmd_RNFR(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_550);
@@ -1031,7 +1036,8 @@ static void cmd_RNFR(struct client_info *client) {
 
 // RNTO (Rename to) "RNTO <SP> <pathname> <CRLF>" ------------------------------
 
-static void cmd_RNTO(struct client_info *client) {
+static void cmd_RNTO(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_553);
@@ -1049,10 +1055,11 @@ static void cmd_RNTO(struct client_info *client) {
 
 // SIZE (Size of file) "SIZE <SP> <pathname> <CRLF>" ---------------------------
 
-static void cmd_SIZE(struct client_info *client) {
+static void cmd_SIZE(struct client_info *client)
+{
     struct stat s;
-    char path[PATH_MAX];
 
+    char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_550);
         return;
@@ -1083,7 +1090,8 @@ static void cmd_SIZE(struct client_info *client) {
 
 // STRU (File structure) "STRU <SP> <structure-code> <CRLF>" -------------------
 
-static void cmd_STRU(struct client_info *client) {
+static void cmd_STRU(struct client_info *client)
+{
     if (client->cmd_args[0] == 'F' || client->cmd_args[0] == 'f') {
         send_ctrl_msg(client, RC_200);
     } else {
@@ -1093,7 +1101,8 @@ static void cmd_STRU(struct client_info *client) {
 
 // STOR (Store) "STOR <SP> <pathname> <CRLF>" ----------------------------------
 
-static void cmd_STOR(struct client_info *client) {
+static void cmd_STOR(struct client_info *client)
+{
     char path[PATH_MAX];
     if (gen_ftp_path(client, path, sizeof(path))) {
         send_ctrl_msg(client, RC_553);
@@ -1105,13 +1114,15 @@ static void cmd_STOR(struct client_info *client) {
 
 // SYST (System) "SYST <CRLF>" -------------------------------------------------
 
-static void cmd_SYST(struct client_info *client) {
+static void cmd_SYST(struct client_info *client)
+{
     send_ctrl_msg(client, "215 UNIX Type: L8" CRLF);
 }
 
 // TYPE (Representation type) "TYPE <SP> <type-code> <CRLF>" -------------------
 
-static void cmd_TYPE(struct client_info *client) {
+static void cmd_TYPE(struct client_info *client)
+{
     switch (strlen(client->cmd_args)) {
         case 1:
             switch (client->cmd_args[0]) {
@@ -1148,16 +1159,17 @@ static void cmd_TYPE(struct client_info *client) {
 
 // USER (User name) "USER <SP> <username> <CRLF>" ------------------------------
 
-static void cmd_USER(struct client_info *client) {
+static void cmd_USER(struct client_info *client)
+{
     send_ctrl_msg(client, RC_230);
 }
 
 // Custom FTP commands (not part of the FTP standard) --------------------------
 
 #ifdef PS4
-
 // Toggles server-side decryption of SELF files.
-static void cmd_DECRYPT(struct client_info *client) {
+static void cmd_DECRYPT(struct client_info *client)
+{
     if (decrypt == 0) {
         send_ctrl_msg(client, "200 SELF decryption enabled." CRLF);
         decrypt = 1;
@@ -1168,12 +1180,14 @@ static void cmd_DECRYPT(struct client_info *client) {
 }
 
 // Obsolete, kept for compatibility with older scripts.
-static void cmd_KILL(struct client_info *client) {
+static void cmd_KILL(struct client_info *client)
+{
     send_ctrl_msg(client, RC_202);
 }
 
 // Mounts the proc filesystem.
-void cmd_MTPROC(struct client_info *client) {
+void cmd_MTPROC(struct client_info *client)
+{
     int result = mkdir("/mnt/proc", 0777);
     if (result >= 0 || (*__error()) == 17) {
         result = mount("procfs", "/mnt/proc", 0, NULL);
@@ -1191,7 +1205,8 @@ void cmd_MTPROC(struct client_info *client) {
 }
 
 // Mounts read-only system partitions with read-write access.
-void cmd_MTRW(struct client_info *client) {
+void cmd_MTRW(struct client_info *client)
+{
     if (mount_large_fs("/dev/md0", "/", "exfatfs", "511", MNT_UPDATE) < 0
         || (mount_large_fs("/dev/da0x0.crypt", "/preinst", "exfatfs", "511",
             MNT_UPDATE) < 0)
@@ -1210,7 +1225,8 @@ void cmd_MTRW(struct client_info *client) {
 #endif
 
 // Causes the FTP server to exit.
-static void cmd_SHUTDOWN(struct client_info *client) {
+static void cmd_SHUTDOWN(struct client_info *client)
+{
     send_ctrl_msg(client, "200 Shutting down..." CRLF);
     run = 0;
 }
@@ -1218,7 +1234,8 @@ static void cmd_SHUTDOWN(struct client_info *client) {
 // -----------------------------------------------------------------------------
 
 // Runs the function associated with a client's received FTP command line.
-static void run_cmd(struct client_info *client) {
+static void run_cmd(struct client_info *client)
+{
     // Commands listed in this array are available to FTP clients.
     struct ftp_command ftp_commands[] = {
         // Standard FTP commands:
@@ -1228,6 +1245,7 @@ static void run_cmd(struct client_info *client) {
         { "DELE", cmd_DELE, ARGS_REQUIRED },
         { "FEAT", cmd_FEAT, ARGS_NONE     },
         { "LIST", cmd_LIST, ARGS_OPTIONAL },
+        { "MDTM", cmd_MDTM, ARGS_REQUIRED },
         { "MKD",  cmd_MKD,  ARGS_REQUIRED },
         { "MODE", cmd_MODE, ARGS_REQUIRED },
         { "NLST", cmd_NLST, ARGS_OPTIONAL },
@@ -1249,12 +1267,12 @@ static void run_cmd(struct client_info *client) {
         { "TYPE", cmd_TYPE, ARGS_REQUIRED },
         { "USER", cmd_USER, ARGS_REQUIRED },
         // Custom FTP commands:
-    #ifdef PS4
+#ifdef PS4
         { "DECRYPT", cmd_DECRYPT, ARGS_NONE },
         { "MTPROC",  cmd_MTPROC,  ARGS_NONE },
         { "MTRW",    cmd_MTRW,    ARGS_NONE },
         { "KILL",    cmd_KILL,    ARGS_NONE },
-    #endif
+#endif
         { "SHUTDOWN", cmd_SHUTDOWN, ARGS_NONE },
         { NULL } // Marks the end of the array.
     };
@@ -1266,7 +1284,7 @@ static void run_cmd(struct client_info *client) {
 
     struct ftp_command *cmd = ftp_commands;
     while (cmd->name) {
-        if (strcmp(client->cmd_line, cmd->name) == 0) {
+        if (strcasecmp(client->cmd_line, cmd->name) == 0) {
             if (client->cmd_args) {
                 if (cmd->args_flag == ARGS_NONE) {
                     send_ctrl_msg(client, RC_501);
@@ -1289,8 +1307,9 @@ static void run_cmd(struct client_info *client) {
 
 /// Threads --------------------------------------------------------------------
 
-// Adds a client to the client list.
-static void client_list_add(struct client_info *client) {
+// Adds a client thread to the thread list.
+static void client_list_add(struct client_info *client)
+{
     debug_func(pthread_mutex_lock(&client_list_mtx));
 
     if (client_list == NULL) { // List is empty.
@@ -1309,7 +1328,8 @@ static void client_list_add(struct client_info *client) {
 }
 
 // Deletes a client from the client list.
-static void client_list_delete(struct client_info *client) {
+static void client_list_delete(struct client_info *client)
+{
     debug_func(pthread_mutex_lock(&client_list_mtx));
 
     if (client->prev) {
@@ -1327,33 +1347,39 @@ static void client_list_delete(struct client_info *client) {
 
 // Causes all client threads to exit.
 // The server thread should have exited before calling this function.
-static void client_list_terminate() {
-    // Keep causing the first client's thread to exit until the list is empty.
+static void client_list_terminate()
+{
+    // Loop until the client list is empty.
     while (1) {
         debug_func(pthread_mutex_lock(&client_list_mtx));
 
-        if (client_list == NULL) { // Now it's empty.
+        struct client_info *client = client_list;
+        if (client == NULL) {
             debug_func(pthread_mutex_unlock(&client_list_mtx));
             break;
         }
 
-        // Cause the first client's thread to try to exit.
-        client_thread_exit(client_list);
+        // Cause all remaining client threads to try to exit.
+        do {
+            client_thread_exit(client);
+            client = client->next;
+        } while (client);
 
-        // The exiting thread needs access to the list to be able to exit.
+        // The exiting threads need access to the list to be able to exit.
         debug_func(pthread_mutex_unlock(&client_list_mtx));
 
-        // Wait until the thread exits.
-        debug_func(pthread_join(client_list->thid, NULL));
+        usleep(1000);
     }
-
     debug_func(pthread_mutex_destroy(&client_list_mtx));
 }
 
-// This function is used as a separate thread for each new client.
-static void *client_thread(void *arg) {
-    struct client_info *client = (struct client_info *) arg;
 
+// This function is used as a separate thread for each new client.
+static void *client_thread(void *arg)
+{
+    debug_func(pthread_detach(pthread_self()));
+
+    struct client_info *client = (struct client_info *) arg;
     log_msg("Client %s connects to socket %d.\n", client->ipv4,
         client->ctrl_sockfd);
     send_ctrl_msg(client, "220 FTP server " RELEASE_VERSION " by hippie68."
@@ -1421,12 +1447,12 @@ static void *client_thread(void *arg) {
     debug_msg("Client %s@%d's thread exits.\n", client->ipv4,
         client->ctrl_sockfd);
     free(client);
-    pthread_exit(NULL);
     return NULL;
 }
 
 // Listens for new clients and starts new client threads.
-static void *server_thread(void *arg) {
+static void *server_thread(void *arg)
+{
     // Set up the FTP server's default directory.
     char *default_directory = (char *) arg;
     if (default_directory == NULL) {
@@ -1476,7 +1502,13 @@ static void *server_thread(void *arg) {
             &addrlen);
 
         if (client_sockfd < 0) {
-            debug_retval(client_sockfd);
+#ifdef PS4
+            if (client_sockfd != -2143223548 /* SHUTDOWN command on PS4 */ ) {
+#else
+            if (errno != 22 /* SHUTDOWN command on non-PS4 */ ) {
+#endif
+                debug_retval(client_sockfd);
+            }
             break;
         } else {
             // Allocate the new client struct.
@@ -1517,7 +1549,8 @@ static void *server_thread(void *arg) {
 }
 
 // Initializes the program and starts the server thread.
-int init(const char *ip, unsigned short port, char *default_directory) {
+int init(const char *ip, unsigned short port, char *default_directory)
+{
     int ret;
 
     // Store server port globally.
@@ -1552,7 +1585,8 @@ int init(const char *ip, unsigned short port, char *default_directory) {
 }
 
 // Cleans up and exits the program.
-void fini() {
+void fini()
+{
     // Exit server thread.
     // Make the server thread's blocking accept() fail before attempting
     // to close the server socket. Simply closing a socket does not

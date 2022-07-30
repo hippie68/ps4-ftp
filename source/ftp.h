@@ -9,7 +9,7 @@
 #define FILE_BUF_SIZE 8192
 #define DEFAULT_PATH "/"
 #define DEFAULT_PORT 1337
-#define RELEASE_VERSION "v1.06"
+#define RELEASE_VERSION "v1.07"
 
 // Preprocessor directives for PS4 ---------------------------------------------
 
@@ -48,6 +48,7 @@
 #define bind(a, b, c) sceNetBind(a, b, c)
 #define connect(a, b,c) sceNetConnect(a, b, c)
 #define getsockname(a, b, c) sceNetGetsockname(a, b, c)
+#define gmtime_r(a, b) gmtime_s(a, b)
 #define htonl(x) sceNetHtonl(x)
 #undef htons
 #define htons(x) sceNetHtons(x)
@@ -57,7 +58,7 @@
 #define listen(a, b) sceNetListen(a, b)
 #define pthread_t ScePthread
 #define pthread_create(a, b, c, d) scePthreadCreate(a, b, c, d, "")
-#define pthread_exit(x) scePthreadExit(x)
+#define pthread_detach(x) scePthreadDetach(x)
 #define pthread_join(a, b) scePthreadJoin(a, b)
 #define pthread_mutex_t ScePthreadMutex
 #define pthread_mutex_destroy(x) scePthreadMutexDestroy(x)
@@ -106,20 +107,6 @@
 #define printf_notification(...) // Only used for PS4.
 #define SOCKETCLOSE(x) close(x)
 #define UNUSED(x) (void) (x) // Prevents compiler warnings for unused variables.
-
-#define getdents(a, b, c) syscall(SYS_getdents, a, b, c)
-// In glibc, syscall(SYS_getdents... is not compatible with the regular dirent
-// struct, so we need to define a compatible one. If we don't, filenames miss
-// their first character due to d_type being placed before d_name.
-// See https://man7.org/linux/man-pages/man2/getdents.2.html#NOTES.
-struct linux_dirent {
-    unsigned long d_ino;
-    unsigned long d_off;
-    unsigned short d_reclen;
-    char d_name[1];
-    char pad;
-    char d_type;
-};
 
 #endif
 
