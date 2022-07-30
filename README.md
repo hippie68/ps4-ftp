@@ -11,14 +11,14 @@ Some of the most important bug fixes:
 - [Fixed] Files larger than 4 GiB may not resume properly due to an integer overflow.
 - [Fixed] The server crashes when sending long commands.
 - [Fixed] The server does not send an error message when the requested path does not exist.
-- [Help needed] Connecting a client causes a memory leak (see script "connect_and_crash.sh").
+- [Fixed] Connecting a client causes a memory leak.
 
 The improved PS4 FTP payload is available for download in the [release section](https://github.com/hippie68/ps4-ftp/releases/).
 
 ## How to compile for PS4
 
 1. Set up the PS4 payload SDK from https://github.com/Scene-Collective/ps4-payload-sdk.
-2. In the code's root directory, type "make clean && make" to compile.
+2. In the ps4-ftp directory, type "make clean && make" to compile.
 
 Optional: if you want to help debug, save your computer's IP address and port in the file ftp.h. Uncomment the line that says "//#define DEBUG_PS4" or use compiler option -DDEBUG_PS4. It will make the code larger and the FTP server less responsive, so only do this if you want to debug.  
 On your computer, start netcat or any similar TCP/IP program to listen to the debug output. The computer's IP address and the specified port must match those saved in ftp.h. E.g.:
