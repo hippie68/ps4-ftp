@@ -625,8 +625,8 @@ static void cmd_MDTM(struct client_info *client)
         return;
     }
 
-    sendf_ctrl_msg(client, "213 %d%02d%02d%02d%02d%02d" CRLF,
-        1900 + t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
+    sendf_ctrl_msg(client, "213 %d%02d%02d%02d%02d%02d" CRLF, 1900 + t.tm_year,
+        1 + t.tm_mon, t.tm_mday, t.tm_hour, t.tm_min, t.tm_sec);
 }
 
 // MKD (Make directory) "MKD <SP> <pathname> <CRLF>" ---------------------------
