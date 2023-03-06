@@ -4,114 +4,16 @@
 #ifndef FTP_H
 #define FTP_H
 
-#define CMD_LINE_BUF_SIZE PATH_MAX * 2
+/// Shared preprocessor directives for all systems -----------------------------
+
+#define CMD_LINE_BUF_SIZE PATH_MAX + 255
 #define CRLF "\r\n"
 #define FILE_BUF_SIZE 8192
 #define DEFAULT_PATH "/"
 #define DEFAULT_PORT 1337
-#define RELEASE_VERSION "v1.07"
-
-// Preprocessor directives for PS4 ---------------------------------------------
-
-#ifdef PS4
-
-#include "ps4.h"
-
-// Uncomment this line or use compiler option -DDEBUG_PS4 to enable PS4 debug
-// messages and send them to a computer.
-//#define DEBUG_PS4
-
-#ifdef DEBUG_PS4
-// Adjust DEBUG_IP and DEBUG_PORT here (or use compiler options -DDEBUGIP and
-// -DDEBUG_PORT) to match your computer's network setup.
-// Print debug messages with the function debug_msg().
-// In this order:
-// 1. Listen to messages on your computer, e.g. via netcat: "netcat -l 9023".
-// 2. Start the PS4 FTP server.
-#ifndef DEBUG_IP
-#define DEBUG_IP "192.168.x.x"
-#endif
-#ifndef DEBUG_PORT
-#define DEBUG_PORT 9023
-#endif
-#define debug_msg(fmt, ...) \
-    printf_debug("%s(): " fmt, __func__, ##__VA_ARGS__)
-    // "##__VA_ARGS__" is a GCC extension, supported by other compilers, too.
-#define log_msg(...) printf_debug(__VA_ARGS__)
-#else
-#define debug_msg(...)
-#define log_msg(...)
-#endif
-
-// Other differences between non-PS4 and PS4.
-#define accept(a, b, c) sceNetAccept(a, b, c)
-#define bind(a, b, c) sceNetBind(a, b, c)
-#define connect(a, b,c) sceNetConnect(a, b, c)
-#define getsockname(a, b, c) sceNetGetsockname(a, b, c)
-#define gmtime_r(a, b) gmtime_s(a, b)
-#define htonl(x) sceNetHtonl(x)
-#undef htons
-#define htons(x) sceNetHtons(x)
-#define inet_ntop(a, b, c, d) sceNetInetNtop(a, b, c, d)
-#define inet_pton(a, b, c) sceNetInetPton(a, b, c)
-#define INADDR_ANY IN_ADDR_ANY
-#define listen(a, b) sceNetListen(a, b)
-#define pthread_t ScePthread
-#define pthread_create(a, b, c, d) scePthreadCreate(a, b, c, d, "")
-#define pthread_detach(x) scePthreadDetach(x)
-#define pthread_join(a, b) scePthreadJoin(a, b)
-#define pthread_mutex_t ScePthreadMutex
-#define pthread_mutex_destroy(x) scePthreadMutexDestroy(x)
-#define pthread_mutex_init(a, b) scePthreadMutexInit(a, b, "")
-#define pthread_mutex_lock(x) scePthreadMutexLock(x)
-#define pthread_mutex_unlock(x) scePthreadMutexUnlock(x)
-#define recv(a, b, c, d) sceNetRecv(a, b, c, d)
-#define send(a, b, c, d) sceNetSend(a, b, c, d)
-#define setsockopt(a, b, c, d, e) sceNetSetsockopt(a, b, c, d, e)
-#define socket(a, b, c) sceNetSocket("", a, b, c)
-#define SOCKETCLOSE(x) sceNetSocketClose(x)
-#define SO_REUSEADDR SCE_NET_SO_REUSEADDR
-#define sleep(x) sceKernelSleep(x)
-#define usleep(x) sceKernelUsleep(x)
-
-// Preprocessor directives for other systems -----------------------------------
-
-#else
-
-#include <arpa/inet.h>
-#include <dirent.h>
-#include <errno.h>
-#include <fcntl.h>
-#include <pthread.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <time.h>
-#include <unistd.h>
-
-// Uncomment this line or use compiler option -DDEBUG to enable debug messages.
-//#define DEBUG
-
-#ifdef DEBUG
-#define debug_msg(fmt, ...) \
-    fprintf(stderr, "%s(): " fmt, __func__, ##__VA_ARGS__)
-#else
-#define debug_msg(...)
-#endif
-
-#define log_msg(...) fprintf(stderr, __VA_ARGS__)
-#define printf_notification(...) // Only used for PS4.
-#define SOCKETCLOSE(x) close(x)
-#define UNUSED(x) (void) (x) // Prevents compiler warnings for unused variables.
-
-#endif
+#define RELEASE_VERSION "v1.08"
 
 // Default FTP reply codes -----------------------------------------------------
-
 // Commented reply codes mean their string needs to be generated dynamically.
 
 // Syntax (x0z)
@@ -151,7 +53,6 @@
 #define RC_332 "332 Need account for login." CRLF
 #define RC_532 "532 Need account for storing files." CRLF
 
-
 // File system (x5z)
 #define RC_150 "150 File status okay; about to open data connection." CRLF
 #define RC_250 "250 Requested file action okay, completed." CRLF
@@ -170,13 +71,139 @@
 #define RC_553 "553 Requested file action aborted." \
                " File name not allowed." CRLF
 
-// -----------------------------------------------------------------------------
+/// Preprocessor directives for PS4 --------------------------------------------
+
+#ifdef PS4
+
+#include "ps4.h"
+#undef PATH_MAX
+#define PATH_MAX 1024
+#define FILE_PERM 0777
+#define DIR_PERM 0777
+
+// Uncomment this line or use compiler option -DDEBUG_PS4 to enable PS4 debug
+// messages and send them to a computer.
+//#define DEBUG_PS4
+
+#ifdef DEBUG_PS4
+// Adjust DEBUG_IP and DEBUG_PORT here (or use compiler options -DDEBUGIP and
+// -DDEBUG_PORT) to match your computer's network setup.
+// Print debug messages with the function debug_msg().
+// In this order:
+// 1. Listen to messages on your computer, e.g. via netcat: "netcat -l 9023".
+// 2. Start the PS4 FTP server.
+#ifndef DEBUG_IP
+#define DEBUG_IP "192.168.x.x"
+#endif
+#ifndef DEBUG_PORT
+#define DEBUG_PORT 9023
+#endif
+#define debug_msg(fmt, ...) \
+    printf_debug("%s(): " fmt, __func__, ##__VA_ARGS__)
+    // "##__VA_ARGS__" is a GCC extension, supported by other compilers, too.
+    // It removes the preceeding comma if "..." is missing.
+#define log_msg(...) printf_debug(__VA_ARGS__)
+#else
+#define debug_msg(...)
+#define log_msg(...)
+#endif
+
+// Other differences between non-PS4 and PS4.
+#define accept(a, b, c) sceNetAccept(a, b, c)
+#define bind(a, b, c) sceNetBind(a, b, c)
+#define chmod(...) syscall(15, __VA_ARGS__)
+#define connect(a, b,c) sceNetConnect(a, b, c)
+#define ftruncate(...) syscall(480, __VA_ARGS__)
+#define getsockname(a, b, c) sceNetGetsockname(a, b, c)
+#define gmtime_r(a, b) gmtime_s(a, b)
+#define htonl(x) sceNetHtonl(x)
+#undef htons
+#define htons(x) sceNetHtons(x)
+#define inet_ntop(a, b, c, d) sceNetInetNtop(a, b, c, d)
+#define inet_pton(a, b, c) sceNetInetPton(a, b, c)
+#define INADDR_ANY IN_ADDR_ANY
+#define listen(a, b) sceNetListen(a, b)
+#define pthread_t ScePthread
+#define pthread_create(a, b, c, d) scePthreadCreate(a, b, c, d, "")
+#define pthread_detach(x) scePthreadDetach(x)
+#define pthread_join(a, b) scePthreadJoin(a, b)
+#define pthread_mutex_t ScePthreadMutex
+#define pthread_mutex_destroy(x) scePthreadMutexDestroy(x)
+#define pthread_mutex_init(a, b) scePthreadMutexInit(a, b, "")
+#define pthread_mutex_lock(x) scePthreadMutexLock(x)
+#define pthread_mutex_unlock(x) scePthreadMutexUnlock(x)
+#define recv(a, b, c, d) sceNetRecv(a, b, c, d)
+#define send(a, b, c, d) sceNetSend(a, b, c, d)
+#define setsockopt(a, b, c, d, e) sceNetSetsockopt(a, b, c, d, e)
+#define socket(a, b, c) sceNetSocket("", a, b, c)
+#define SOCKETCLOSE(x) sceNetSocketClose(x)
+#define SO_REUSEADDR SCE_NET_SO_REUSEADDR
+#define sleep(x) sceKernelSleep(x)
+#define usleep(x) sceKernelUsleep(x)
+
+/// Preprocessor directives for other systems (i.e. Linux) ---------------------
+
+#else
+
+#include <arpa/inet.h>
+#include <ctype.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <pthread.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/socket.h>
+#ifndef NON_LINUX
+#include <sys/sendfile.h>
+#endif
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <time.h>
+#include <unistd.h>
+
+#define FILE_PERM 0666
+#define DIR_PERM 0777
+
+// Uncomment this line or use compiler option -DDEBUG to enable debug messages.
+//#define DEBUG
+
+#ifdef DEBUG
+#define debug_msg(fmt, ...) \
+    fprintf(stderr, "%s(): " fmt, __func__, ##__VA_ARGS__)
+#else
+#define debug_msg(...)
+#endif
+
+#define log_msg(...) fprintf(stderr, __VA_ARGS__)
+#define printf_notification(...) // Only used for PS4.
+#define SOCKETCLOSE(x) close(x)
+#define UNUSED(x) (void) (x) // Prevents compiler warnings for unused variables.
+
+#endif
+
+/// ----------------------------------------------------------------------------
 
 // Describes the client's data connection.
 enum data_connection_type {
     FTP_DATA_CONNECTION_NONE,    // No opened data connection
     FTP_DATA_CONNECTION_ACTIVE,  // Data connection socket (.data_sockfd) used
     FTP_DATA_CONNECTION_PASSIVE, // Same as _ACTIVE, plus .pasv_sockfd used
+};
+
+// Stores the client's currently set MLST facts.
+// When implementing a new fact, the following parts of ftp.c must be updated:
+// cmd_FEAT(), cmd_OPTS_MLST, send_facts(), server_thread().
+struct facts {
+    int modify;     // Last modification time
+    int size;       // Size in bytes
+    int type;       // Entry type (dir, file, ...)
+    int unique;     // Unique ID of file/directory
+    int unix_group; // Group ID
+    int unix_mode;  // Unix file permissions
+    int unix_owner; // User ID
 };
 
 // Contains information about a connected client.
@@ -197,8 +224,10 @@ struct client_info {
     char *cmd_args;                   // Command line arguments of .cmd_line
     char cur_path[PATH_MAX];          // Current FTP directory (no trailing '/')
     char rename_path[PATH_MAX];       // Rename path
-    long restore_point;               // Offset to resume outgoing files at
+    long long restore_point;          // Offset to resume outgoing files at
     char binary_flag;                 // File mode for APPE, RETR, STOR, STOU
+    int umask;                        // Current file mode creation mask
+    struct facts facts;               // Client's currently set MLST facts
     struct client_info *next;         // Next client in the client list
     struct client_info *prev;         // Previous client in the client list
 };

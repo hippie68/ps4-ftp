@@ -1,6 +1,8 @@
 // FTP server for PS4 and Linux.
 // https://github.com/hippie68/ps4-ftp
 
+#define _FILE_OFFSET_BITS 64
+
 #include "ftp.h"
 
 #define POLLING_INTERVAL 5 // Time to wait between checks for `run`.
@@ -58,15 +60,13 @@ int _main(struct thread *td)
         sleep(3);
 
         // Display IP address and port in form of a PS4 notification popup.
-        if (run) {
+        if (run)
             printf_notification("Listening on\nIP:     %s\nPort: %u",
                 ip_address, DEFAULT_PORT);
-        }
 
         // Loop until receiving the SHUTDOWN command, which sets run to 0.
-        while (run) {
+        while (run)
             sleep(POLLING_INTERVAL);
-        }
 
         // Exit FTP server.
         fini();
@@ -87,53 +87,78 @@ int _main(struct thread *td)
 
 #else
 
-void print_usage(FILE *stream, char *program_name)
+#include <getopt.h>
+
+static char *program_name;
+int read_only_mode = 0; // Write commands are disabled if the value is 1.
+
+void print_usage(int exit_code)
 {
-    fprintf(stream,
+    fprintf(exit_code ? stderr : stdout,
         "Usage: %s [OPTIONS] [PORT]\n\n"
-        "Starts an anonymous FTP server in the current directory.\n\nOptions:\n"
-        "  -h, --help  Print help information and quit.\n", program_name);
+        "Starts an anonymous FTP server in the current directory.\n"
+        "\nOptions:\n"
+        "  -h, --help       Print help information and quit.\n"
+        "      --read-only  Start the server in read-only mode.\n"
+        , program_name);
+    exit(exit_code);
 }
 
 int main(int argc, char **argv)
 {
-    if (argc > 2 || (argc == 2 && (strcmp(argv[1], "-h") == 0 || strcmp(argv[1],
-        "--help") == 0))) {
-        print_usage(argc > 2 ? stderr : stdout, argv[0]);
-        return (argc > 2);
-    }
+    program_name = strrchr(argv[0], '/');
+    if (program_name)
+        program_name++;
+    else
+        program_name = argv[0];
 
-    // Set IPv4 address or hostname, and port.
-    char *ip = "127.0.0.1";
-    unsigned short port = DEFAULT_PORT;
-    if (argv[1]) {
-        port = atoi(argv[1]);
-        if (port == 0) {
-            print_usage(stderr, argv[0]);
-            return 1;
+    // Check command line arguments.
+    static const struct option long_opts[] = {
+        { "help",      no_argument, NULL,            'h' },
+        { "read-only", no_argument, &read_only_mode, 1   },
+        { NULL }
+    };
+    int c;
+    while ((c = getopt_long(argc, argv, "h", long_opts, NULL)) != -1) {
+        switch (c) {
+            case 'h':
+                print_usage(EXIT_SUCCESS);
+                break;
+            case '?':
+                print_usage(EXIT_FAILURE);
+                break;
         }
+    }
+    argc -= optind;
+    argv += optind;
+
+    // Set FTP server port.
+    unsigned short server_port;
+    if (argc == 0)
+        server_port = DEFAULT_PORT;
+    else if (argc > 1) // Allow only 1 operand: "PORT".
+        print_usage(EXIT_FAILURE);
+    else if ((server_port = atoi(argv[0])) == 0) {
+        fprintf(stderr,
+            "PORT must be a number between 1 and 65535 (usually > 1023).\n");
+        print_usage(EXIT_FAILURE);
     }
 
     // Start FTP server.
-    char path[PATH_MAX];
-    if (getcwd(path, sizeof(path)) == NULL) {
-        if (init(ip, port, DEFAULT_PATH)) {
-            return 1;
-        }
-    } else {
-        if (init(ip, port, path)) {
-            return 1;
-        }
-    }
+    char pathbuf[PATH_MAX];
+    char *path = getcwd(pathbuf, sizeof(pathbuf));
+    if (path == NULL)
+        path = DEFAULT_PATH;
+    if (init("127.0.0.1", server_port, path))
+        exit(EXIT_FAILURE);
 
     // Loop until receiving the SHUTDOWN command, which sets run to 0.
-    while (run) {
+    while (run)
         sleep(POLLING_INTERVAL);
-    }
 
     // Exit FTP server.
     fini();
-    return 0;
+    exit(EXIT_SUCCESS);
 }
 
 #endif
