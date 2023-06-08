@@ -11,7 +11,7 @@
 #define FILE_BUF_SIZE 8192
 #define DEFAULT_PATH "/"
 #define DEFAULT_PORT 1337
-#define RELEASE_VERSION "v1.08"
+#define RELEASE_VERSION "v1.08a"
 
 // Default FTP reply codes -----------------------------------------------------
 // Commented reply codes mean their string needs to be generated dynamically.

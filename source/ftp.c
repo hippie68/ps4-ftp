@@ -844,8 +844,10 @@ static void cmd_MLST(struct client_info *client)
 {
     char path[PATH_MAX];
     if (gen_ftp_path(path, sizeof(path), client, client->cmd_args)
-        || !ftp_file_exists(path))
+        || !ftp_file_exists(path)) {
         send_ctrl_msg(client, RC_550);
+        return;
+    }
 
     sendf_ctrl_msg(client, "250-Listing %s" CRLF,
         client->cmd_args ? client->cmd_args : client->cur_path);
