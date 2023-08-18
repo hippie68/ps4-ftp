@@ -11,7 +11,7 @@
 #define FILE_BUF_SIZE 8192
 #define DEFAULT_PATH "/"
 #define DEFAULT_PORT 1337
-#define RELEASE_VERSION "v1.08a"
+#define RELEASE_VERSION "v1.08b (WIP)"
 
 // Default FTP reply codes -----------------------------------------------------
 // Commented reply codes mean their string needs to be generated dynamically.
@@ -101,7 +101,7 @@
 #define debug_msg(fmt, ...) \
     printf_debug("%s(): " fmt, __func__, ##__VA_ARGS__)
     // "##__VA_ARGS__" is a GCC extension, supported by other compilers, too.
-    // It removes the preceeding comma if "..." is missing.
+    // It removes the preceding comma if "..." is missing.
 #define log_msg(...) printf_debug(__VA_ARGS__)
 #else
 #define debug_msg(...)
@@ -123,6 +123,7 @@
 #define inet_pton(a, b, c) sceNetInetPton(a, b, c)
 #define INADDR_ANY IN_ADDR_ANY
 #define listen(a, b) sceNetListen(a, b)
+#define MSG_NOSIGNAL 0x20000
 #define pthread_t ScePthread
 #define pthread_create(a, b, c, d) scePthreadCreate(a, b, c, d, "")
 #define pthread_detach(x) scePthreadDetach(x)
@@ -137,6 +138,7 @@
 #define setsockopt(a, b, c, d, e) sceNetSetsockopt(a, b, c, d, e)
 #define socket(a, b, c) sceNetSocket("", a, b, c)
 #define SOCKETCLOSE(x) sceNetSocketClose(x)
+#define SO_RCVTIMEO 0x1006
 #define SO_REUSEADDR SCE_NET_SO_REUSEADDR
 #define sleep(x) sceKernelSleep(x)
 #define usleep(x) sceKernelUsleep(x)
@@ -151,6 +153,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <pthread.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>

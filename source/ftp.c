@@ -72,23 +72,32 @@ static int strcasecmp(const char *s1, const char *s2)
 }
 #endif
 
-static char *strcasestr(char *haystack, char *needle)
+static char *strcasestr(const char *haystack, const char *needle)
 {
-    if (haystack == NULL || needle == NULL)
+    if (*haystack == '\0' || *needle == '\0')
         return NULL;
 
-    char lower_haystack[strlen(haystack) + 1];
-    char lower_needle[strlen(needle) + 1];
-    for (size_t i = 0; i <= strlen(haystack); i++)
-        lower_haystack[i] = tolower(haystack[i]);
-    for (size_t i = 0; i <= strlen(needle); i++)
-        lower_needle[i] = tolower(needle[i]);
-
-    char *result = strstr(lower_haystack, lower_needle);
-    if (result)
-        return &haystack[result - lower_haystack];
-    else
+    size_t haystack_len = strlen(haystack);
+    size_t needle_len = strlen(needle);
+    if (haystack_len < needle_len)
         return NULL;
+    size_t diff_len = haystack_len - needle_len;
+
+    do {
+        if (tolower(*haystack) == tolower(*needle)) {
+            const char *a = haystack;
+            const char *b = needle;
+            do {
+                ++a;
+                ++b;
+                if (*b == '\0')
+                    return (char *) haystack;
+            } while (tolower(*a) == tolower(*b));
+        }
+        ++haystack;
+    } while (diff_len-- > 0);
+
+    return NULL;
 }
 
 /// Message-sending functions --------------------------------------------------
@@ -97,7 +106,7 @@ static char *strcasestr(char *haystack, char *needle)
 // Only complete messages, ending with CRLF, should be sent.
 #define send_ctrl_msg(client, str)                                       \
     do {                                                                 \
-        send(client->ctrl_sockfd, str, strlen(str), 0);                  \
+        send(client->ctrl_sockfd, str, strlen(str), MSG_NOSIGNAL);       \
         log_msg("%s@%d < \"%.*s\"\n", client->ipv4, client->ctrl_sockfd, \
             (int) strlen(str) - 2, str);                                 \
     } while (0)
@@ -166,13 +175,13 @@ static void close_data_connection(struct client_info *client)
 static inline void send_data_msg(struct client_info *client, char *str)
 {
     if (client->data_con_type == FTP_DATA_CONNECTION_ACTIVE)
-        send(client->data_sockfd, str, strlen(str), 0);
+        send(client->data_sockfd, str, strlen(str), MSG_NOSIGNAL);
     else
-        send(client->pasv_sockfd, str, strlen(str), 0);
+        send(client->pasv_sockfd, str, strlen(str), MSG_NOSIGNAL);
 }
 
 // Causes a client's thread to exit.
-// Used by FTP command QUIT and function client_list_terminate().
+// Used in FTP command QUIT and function client_list_terminate().
 static void client_thread_exit(struct client_info *client)
 {
     // Abort any open data connections.
@@ -291,7 +300,7 @@ static int send_facts(struct client_info *client, char *path, char *filename,
     else
         size[0] = '\0';
 
-    char unique[43];
+    char unique[42];
     if (client->facts.unique)
         snprintf(unique, sizeof(unique), "unique=%lx-%lx;", statbuf.st_dev,
             statbuf.st_ino);
@@ -596,7 +605,10 @@ static int gen_list_format(char *out, int n, struct stat *st, char *file_name,
     if (file_tm.tm_year == cur_year)
         snprintf(yt, sizeof(yt), "%02d:%02d", file_tm.tm_hour, file_tm.tm_min);
     else
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-truncation"
         snprintf(yt, sizeof(yt), "%d", 1900 + cur_year);
+#pragma GCC diagnostic pop
 
 #define LIST_FMT "%c%c%c%c%c%c%c%c%c%c %ld %d %d %ld %s %2d %s %s"
 #define LIST_ARGS                                                  \
@@ -1057,50 +1069,47 @@ static void cmd_PASV(struct client_info *client)
         return;
     }
 
-#ifdef PS4
-    client->data_sockaddr.sin_len = sizeof(client->data_sockaddr);
-#endif
-    client->data_sockaddr.sin_family = AF_INET;
-    client->data_sockaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    client->data_sockaddr.sin_port = htons(0);
-
     int ret;
+    socklen_t socklen = sizeof(struct sockaddr_in);
+
+    // To ensure the PASV IP is reachable, use the server IP the client uses for
+    // its control connection.
+    if ((ret = getsockname(client->ctrl_sockfd,
+        (struct sockaddr *) &client->data_sockaddr, &socklen)) < 0)
+        goto error;
+    client->data_sockaddr.sin_port = htons(0); // But we need a different port.
 
     if ((ret = bind(client->data_sockfd, (struct sockaddr *)
-        &client->data_sockaddr, sizeof(client->data_sockaddr))) < 0) {
-        debug_retval(ret);
-        SOCKETCLOSE(client->data_sockfd);
-        send_ctrl_msg(client, RC_451);
-        return;
-    }
+        &client->data_sockaddr, sizeof(client->data_sockaddr))) < 0)
+        goto error;
 
-    if ((ret = listen(client->data_sockfd, 128)) < 0) {
-        debug_retval(ret);
-        SOCKETCLOSE(client->data_sockfd);
-        send_ctrl_msg(client, RC_451);
-        return;
-    }
+    if ((ret = listen(client->data_sockfd, 128)) < 0)
+        goto error;
 
     struct sockaddr_in pasv_addr;
-    socklen_t namelen = sizeof(pasv_addr);
-
     if ((ret = getsockname(client->data_sockfd, (struct sockaddr *) &pasv_addr,
-        &namelen)) < 0) {
-        debug_retval(ret);
-        SOCKETCLOSE(client->data_sockfd);
-        send_ctrl_msg(client, RC_451);
-        return;
-    }
+        &socklen)) < 0)
+        goto error;
 
     client->data_con_type = FTP_DATA_CONNECTION_PASSIVE;
 
     char reply[CMD_LINE_BUF_SIZE];
     snprintf(reply, sizeof(reply),
         "227 Entering Passive Mode (%hhu,%hhu,%hhu,%hhu,%hhu,%hhu)." CRLF,
-        (server_ip.s_addr >> 0) & 0xFF, (server_ip.s_addr >> 8) & 0xFF,
-        (server_ip.s_addr >> 16) & 0xFF, (server_ip.s_addr >> 24) & 0xFF,
-        (pasv_addr.sin_port >> 0) & 0xFF, (pasv_addr.sin_port >> 8) & 0xFF);
+        (pasv_addr.sin_addr.s_addr >> 0) & 0xFF,
+        (pasv_addr.sin_addr.s_addr >> 8) & 0xFF,
+        (pasv_addr.sin_addr.s_addr >> 16) & 0xFF,
+        (pasv_addr.sin_addr.s_addr >> 24) & 0xFF,
+        (pasv_addr.sin_port >> 0) & 0xFF,
+        (pasv_addr.sin_port >> 8) & 0xFF);
     send_ctrl_msg(client, reply);
+
+    return;
+
+error:
+    debug_retval(ret);
+    SOCKETCLOSE(client->data_sockfd);
+    send_ctrl_msg(client, RC_451);
 }
 
 // PORT (Data port) "SP> <host-port> <CRLF>" -----------------------------------
@@ -1215,7 +1224,7 @@ static void send_file(struct client_info *client, const char *path)
     unsigned char buffer[FILE_BUF_SIZE];
     int n_read;
     while ((n_read = read(fd, buffer, FILE_BUF_SIZE)) > 0) {
-        if (n_read != send(sockfd, buffer, n_read, 0)) {
+        if (n_read != send(sockfd, buffer, n_read, MSG_NOSIGNAL)) {
             close(fd);
             close_data_connection(client);
             send_ctrl_msg(client, RC_426);
@@ -1238,9 +1247,12 @@ static void send_file(struct client_info *client, const char *path)
     fstat(fd, &sb);
     off_t n_left = sb.st_size;
     ssize_t n_sent;
+
+    signal(SIGPIPE, SIG_IGN);
     while ((n_sent = sendfile(sockfd, fd, NULL, n_left)) >= 0
         && n_sent < n_left)
         n_left -= n_sent;
+    signal(SIGPIPE, SIG_DFL);
 
     close(fd);
     close_data_connection(client);
@@ -1292,7 +1304,8 @@ static void send_text_file(struct client_info *client, const char *path)
             if (buffer[i] == '\n') {
                 buffer[i] = '\r';
                 size = i + 1 - start;
-                if ((ret = send(sockfd, buffer + start, size, 0)) != size) {
+                if ((ret = send(sockfd, buffer + start, size, MSG_NOSIGNAL))
+                    != size) {
                     debug_retval(ret);
                     close(fd);
                     close_data_connection(client);
@@ -1306,7 +1319,8 @@ static void send_text_file(struct client_info *client, const char *path)
 
         // Send remaining buffer.
         size = n_read - start;
-        if ((ret = send(sockfd, buffer + start, size, 0)) != size) {
+        if ((ret = send(sockfd, buffer + start, size, MSG_NOSIGNAL))
+            != size) {
             debug_retval(ret);
             close(fd);
             close_data_connection(client);
@@ -1527,7 +1541,7 @@ static void cmd_USER(struct client_info *client)
 // Custom SITE commands (not part of the FTP standard, but commonly used) ------
 
 // Converts a string into a file mode, returning -1 on error.
-// Used by FTP commands "SITE CHMOD" and "SITE UMASK".
+// Used in FTP commands "SITE CHMOD" and "SITE UMASK".
 static long string_to_mode(char *str)
 {
     if (str == NULL || strlen(str) > 4)
@@ -1685,7 +1699,8 @@ static void cmd_BLOCKED(struct client_info *client)
 // -----------------------------------------------------------------------------
 
 // Creates a list of commands that are available to FTP clients.
-static int create_command_list(void) {
+static int create_command_list(void)
+{
     struct ftp_command command_list[] = {
         // Standard FTP commands:
         { "APPE", cmd_APPE, ARGS_REQUIRED },
@@ -1770,11 +1785,6 @@ static int create_command_list(void) {
 // Runs the function associated with a client's received FTP command line.
 static void run_cmd(struct client_info *client)
 {
-    if (client->cmd_line == NULL) {
-        send_ctrl_msg(client, RC_502);
-        return;
-    }
-
     struct ftp_command *cmd = ftp_commands;
     while (cmd->name) {
         if (strcasecmp(client->cmd_line, cmd->name) == 0) {
@@ -1867,6 +1877,11 @@ static void client_list_terminate()
     debug_func(pthread_mutex_destroy(&client_list_mtx));
 }
 
+static void set_socket_timeout(int socket, int seconds)
+{
+    struct timeval t = { .tv_sec = seconds };
+    setsockopt(socket, SOL_SOCKET, SO_RCVTIMEO, &t, sizeof(t));
+}
 
 // This function is used as a separate thread for each new client.
 static void *client_thread(void *arg)
@@ -1878,6 +1893,9 @@ static void *client_thread(void *arg)
         client->ctrl_sockfd);
     send_ctrl_msg(client, "220 FTP server " RELEASE_VERSION " by hippie68."
         CRLF);
+
+    // Disconnect after a period of inactivity.
+    set_socket_timeout(client->ctrl_sockfd, 300);
 
     while (1) {
         // Receive a command line string from the client.
@@ -1999,7 +2017,7 @@ static void *server_thread(void *arg)
     while (1) {
         struct sockaddr_in clientaddr;
         int client_sockfd;
-        unsigned int addrlen = sizeof(clientaddr);
+        socklen_t addrlen = sizeof(clientaddr);
 
         client_sockfd = accept(server_sockfd, (struct sockaddr *) &clientaddr,
             &addrlen);
