@@ -527,10 +527,16 @@ static void cmd_CDUP(struct client_info *client)
 
 static void cmd_CWD(struct client_info *client)
 {
-    if (strcmp(client->cmd_args, "..") == 0)
-        dir_up(client);
-    else if (strcmp(client->cmd_args, ".") == 0)
+    if (strcmp(client->cmd_args, "..") == 0) {
+        if (dir_up(client))
+            send_ctrl_msg(client, RC_550);
+        else
+            send_ctrl_msg(client, RC_250);
         return;
+    }
+
+    if (strcmp(client->cmd_args, ".") == 0)
+        client->cmd_args = client->cur_path;
 
     char path[PATH_MAX];
     if (gen_ftp_path(path, sizeof(path), client, client->cmd_args)) {
