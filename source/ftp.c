@@ -274,7 +274,7 @@ static int send_facts(struct client_info *client, char *path, char *filename,
     _Bool use_data_con)
 {
     struct stat statbuf;
-    if (stat(path, &statbuf) < 0)
+    if (lstat(path, &statbuf) < 0)
         return -1;
 
     char *type;
@@ -287,6 +287,18 @@ static int send_facts(struct client_info *client, char *path, char *filename,
                 type = "type=pdir;";
             else
                 type = "type=dir;";
+        } else if (S_ISREG(statbuf.st_mode)) {
+            type = "type=file;";
+        } else if (S_ISLNK(statbuf.st_mode)) {
+            type = "type=os.unix=slink;";
+        } else if (S_ISCHR(statbuf.st_mode)) {
+            type = "type=os.unix=cdevice;";
+        } else if (S_ISBLK(statbuf.st_mode)) {
+            type = "type=os.unix=bdevice;";
+        } else if (S_ISFIFO(statbuf.st_mode)) {
+            type = "type=os.unix=fifo;";
+        } else if (S_ISSOCK(statbuf.st_mode)) {
+            type = "type=os.unix=socket;";
         } else {
             type = "type=file;";
         }
@@ -534,7 +546,6 @@ static void cmd_CWD(struct client_info *client)
             send_ctrl_msg(client, RC_250);
         return;
     }
-
     if (strcmp(client->cmd_args, ".") == 0)
         client->cmd_args = client->cur_path;
 
@@ -581,6 +592,7 @@ static void cmd_FEAT(struct client_info *client)
 {
     send_ctrl_msg(client, "211-Extensions:" CRLF);
     send_ctrl_msg(client, " MDTM" CRLF);
+#ifndef NO_MLST
     sendf_ctrl_msg(client, " MLST type%s;size%s;unique%s;modify%s;"
         "unix.owner%s;unix.group%s;unix.mode%s;" CRLF,
         client->facts.type ? "*" : "",
@@ -590,6 +602,7 @@ static void cmd_FEAT(struct client_info *client)
         client->facts.unix_owner ? "*" : "",
         client->facts.unix_group ? "*" : "",
         client->facts.unix_mode ? "*" : "");
+#endif
     send_ctrl_msg(client, " REST STREAM" CRLF);
     send_ctrl_msg(client, " SITE CHMOD" CRLF);
     send_ctrl_msg(client, " SITE UMASK" CRLF);
@@ -659,7 +672,7 @@ static void send_list_item(struct client_info *client, char *path,
     char buffer[CMD_LINE_BUF_SIZE];
     struct stat st;
 
-    int ret = stat(path, &st);
+    int ret = lstat(path, &st);
     if (ret < 0) {
         debug_retval(ret);
         return;
@@ -1901,7 +1914,7 @@ static void *client_thread(void *arg)
         CRLF);
 
     // Disconnect after a period of inactivity.
-    set_socket_timeout(client->ctrl_sockfd, 300);
+    set_socket_timeout(client->ctrl_sockfd, 600);
 
     while (1) {
         // Receive a command line string from the client.

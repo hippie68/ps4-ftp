@@ -11,7 +11,11 @@
 #define FILE_BUF_SIZE 8192
 #define DEFAULT_PATH "/"
 #define DEFAULT_PORT 1337
-#define RELEASE_VERSION "v1.08b (WIP)"
+#define RELEASE_VERSION "v1.08c BETA"
+
+// Uncomment this line or use compiler option -DNO_MLST to prevent the FTP
+// server from advertising MLST capability in response to a FEAT command.
+//#define NO_MLST
 
 // Default FTP reply codes -----------------------------------------------------
 // Commented reply codes mean their string needs to be generated dynamically.
