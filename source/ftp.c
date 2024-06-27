@@ -278,8 +278,11 @@ static int send_facts(struct client_info *client, char *path, char *filename,
         return -1;
 
     char *type;
+    char type_slink_buf[20 + PATH_MAX];
     if (client->facts.type) {
-        if (S_ISDIR(statbuf.st_mode)) {
+        if (S_ISREG(statbuf.st_mode)) {
+            type = "type=file;";
+        } else if (S_ISDIR(statbuf.st_mode)) {
             if (filename[0] == '.' && filename[1] == '\0')
                 type = "type=cdir;";
             else if (filename[0] == '.' && filename[1] == '.'
@@ -287,18 +290,25 @@ static int send_facts(struct client_info *client, char *path, char *filename,
                 type = "type=pdir;";
             else
                 type = "type=dir;";
-        } else if (S_ISREG(statbuf.st_mode)) {
-            type = "type=file;";
         } else if (S_ISLNK(statbuf.st_mode)) {
-            type = "type=os.unix=slink;";
+            type = "type=OS.unix=slink:";
+            strcpy(type_slink_buf, type);
+            int ret = readlink(path, type_slink_buf + strlen(type), PATH_MAX);
+            if (ret < 0 || ret == PATH_MAX) {
+                debug_retval(ret);
+                strcpy(type_slink_buf + strlen(type) - 1, ";");
+            } else {
+                strcpy(type_slink_buf + strlen(type) + ret, ";");
+            }
+            type = type_slink_buf;
         } else if (S_ISCHR(statbuf.st_mode)) {
-            type = "type=os.unix=cdevice;";
+            type = "type=OS.unix=cdevice;";
         } else if (S_ISBLK(statbuf.st_mode)) {
-            type = "type=os.unix=bdevice;";
+            type = "type=OS.unix=bdevice;";
         } else if (S_ISFIFO(statbuf.st_mode)) {
-            type = "type=os.unix=fifo;";
+            type = "type=OS.unix=fifo;";
         } else if (S_ISSOCK(statbuf.st_mode)) {
-            type = "type=os.unix=socket;";
+            type = "type=OS.unix=socket;";
         } else {
             type = "type=file;";
         }
@@ -541,30 +551,38 @@ static void cmd_CWD(struct client_info *client)
 {
     if (strcmp(client->cmd_args, "..") == 0) {
         if (dir_up(client))
-            send_ctrl_msg(client, RC_550);
+            goto reject;
         else
-            send_ctrl_msg(client, RC_250);
-        return;
+            goto accept;
     }
     if (strcmp(client->cmd_args, ".") == 0)
         client->cmd_args = client->cur_path;
 
     char path[PATH_MAX];
-    if (gen_ftp_path(path, sizeof(path), client, client->cmd_args)) {
-        send_ctrl_msg(client, RC_550);
-        return;
-    }
+    if (gen_ftp_path(path, sizeof(path), client, client->cmd_args))
+        goto reject;
 
 #ifdef PS4
-    if (ftp_file_exists(path)) {
+    if (!ftp_file_exists(path))
 #else
-    if (access(path, R_OK) == 0) {
+    if (access(path, R_OK) != 0)
 #endif
-        strncpy(client->cur_path, path, sizeof(client->cur_path));
-        send_ctrl_msg(client, RC_250);
-    } else {
-        send_ctrl_msg(client, RC_550);
-    }
+        goto reject;
+
+    struct stat st;
+    int ret = stat(path, &st);
+    if (ret || !S_ISDIR(st.st_mode))
+        goto reject;
+
+    strncpy(client->cur_path, path, sizeof(client->cur_path));
+    goto accept;
+
+reject:
+    send_ctrl_msg(client, RC_550);
+    return;
+
+accept:
+    send_ctrl_msg(client, RC_250);
 }
 
 // DELE (Delete) "DELE <SP> <pathname> <CRLF>" ---------------------------------
